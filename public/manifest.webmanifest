@@ -1,0 +1,10 @@
+{
+  "name": "Qur'oni Karim — o'zbekcha tarjimalar",
+  "short_name": "Qur'on UZ",
+  "lang": "uz",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0c131b",
+  "theme_color": "#0e3b35",
+  "icons": [{ "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml" }]
+}

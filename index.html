@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="uz">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Qur'oni Karim — arabcha matn va o'zbekcha tarjimalar</title>
+    <meta
+      name="description"
+      content="Qur'oni Karimni o'zbek tilida o'qing: Tanzil Usmoniy arabcha matni, Muhammad Sodiq Muhammad Yusuf va Alouddin Mansur tarjimalari, tezkor qidiruv, suralar xaritasi va arabcha ildizlar grafi."
+    />
+    <meta name="theme-color" content="#f7f3ea" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0c131b" media="(prefers-color-scheme: dark)" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="uz_UZ" />
+    <meta property="og:title" content="Qur'oni Karim — o'zbekcha tarjimalar" />
+    <meta
+      property="og:description"
+      content="Arabcha Usmoniy matn va o'zbekcha tarjimalar, qidiruv, suralar xaritasi va ildizlar grafi."
+    />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="preload" href="./fonts/amiri-quran-arabic.woff2" as="font" type="font/woff2" crossorigin />
+    <script>
+      // Mavzuni sahifa chizilishidan oldin qo'llash (miltillamasligi uchun)
+      (function () {
+        var t = 'auto';
+        try {
+          var s = JSON.parse(localStorage.getItem('quz.settings') || '{}');
+          if (s && (s.theme === 'light' || s.theme === 'dark')) t = s.theme;
+        } catch (e) {}
+        if (t !== 'auto') document.documentElement.setAttribute('data-theme', t);
+      })();
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Asosiy qismga o'tish</a>
+    <header class="topbar" id="topbar"></header>
+    <main id="main" tabindex="-1">
+      <div class="boot" aria-live="polite">
+        <div class="boot-star" aria-hidden="true"></div>
+        <p>Yuklanmoqda…</p>
+      </div>
+    </main>
+    <nav class="tabbar" id="tabbar" aria-label="Asosiy bo'limlar"></nav>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <noscript><p style="padding: 2rem">Saytdan foydalanish uchun JavaScript yoqilgan bo'lishi kerak.</p></noscript>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
