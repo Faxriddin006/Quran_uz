@@ -19,6 +19,6 @@
   "dependencies": {
     "graphology": "^0.26.0",
     "minisearch": "^7.2.0",
-    "sigma": "^4.0.4"
+    "sigma": "^3.0.3"
   }
 }
