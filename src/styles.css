@@ -14,16 +14,18 @@
   --surface-2: #f4eee1;
   --ink: #1c232d;
   --ink-2: #3a4350;
-  --muted: #697282;
+  --muted: #5b6370;
   --line: #e2d9c6;
   --line-2: #d4c8af;
-  --accent: #0d7a63;
+  --accent: #0a6b56;
   --accent-ink: #ffffff;
   --accent-soft: #d7efe7;
-  --gold: #a87b1f;
+  --gold: #86610f;
   --gold-soft: #f5e7c4;
   --makki: #c98a1c;
   --madani: #19857c;
+  --makki-ink: #7a520a;
+  --madani-ink: #0b5f57;
   --mark: #ffe08a;
   --shadow: 0 1px 2px rgba(40, 30, 10, 0.06), 0 6px 24px rgba(40, 30, 10, 0.07);
   --radius: 16px;
@@ -54,6 +56,8 @@
     --gold-soft: #3a2f16;
     --makki: #e3a43a;
     --madani: #3dbcb0;
+    --makki-ink: #e3a43a;
+    --madani-ink: #3dbcb0;
     --mark: #6b5310;
     --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 28px rgba(0, 0, 0, 0.35);
     color-scheme: dark;
@@ -76,6 +80,8 @@
   --gold-soft: #3a2f16;
   --makki: #e3a43a;
   --madani: #3dbcb0;
+  --makki-ink: #e3a43a;
+  --madani-ink: #3dbcb0;
   --mark: #6b5310;
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 28px rgba(0, 0, 0, 0.35);
   color-scheme: dark;
@@ -91,7 +97,6 @@
 }
 html {
   -webkit-text-size-adjust: 100%;
-  scroll-padding-top: calc(var(--topbar-h) + 70px);
 }
 body {
   margin: 0;
@@ -312,6 +317,9 @@ main {
   font-size: 14px;
   border-radius: 10px;
 }
+a.chip {
+  text-decoration: none;
+}
 .chip {
   display: inline-flex;
   align-items: center;
@@ -343,11 +351,11 @@ main {
   white-space: nowrap;
 }
 .badge.makkiy {
-  color: var(--makki);
+  color: var(--makki-ink);
   background: color-mix(in srgb, var(--makki) 14%, transparent);
 }
 .badge.madaniy {
-  color: var(--madani);
+  color: var(--madani-ink);
   background: color-mix(in srgb, var(--madani) 14%, transparent);
 }
 .dot {
@@ -734,7 +742,8 @@ h3 {
   line-height: 2;
 }
 .ayahs {
-  padding: 6px 0 30px;
+  padding-top: 6px;
+  padding-bottom: 30px;
 }
 .ayah {
   display: grid;
@@ -744,7 +753,7 @@ h3 {
   border-bottom: 1px solid var(--line);
   content-visibility: auto;
   contain-intrinsic-size: auto 260px;
-  scroll-margin-top: calc(var(--topbar-h) + 64px);
+  scroll-margin-top: calc(var(--topbar-h) + 60px);
 }
 .ayah.target {
   animation: glow 2.6s ease-out 1;
@@ -1452,4 +1461,30 @@ mark {
 }
 .g-ayas .more {
   justify-self: center;
+}
+.rw-list {
+  display: flex;
+  flex-wrap: wrap;
+  direction: rtl;
+  gap: 8px;
+}
+.rw-item {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  border-radius: 10px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.rw-word {
+  font-size: 24px;
+  line-height: 1.7;
+}
+.rw-none {
+  font-size: 11px;
+  direction: ltr;
+}
+.rw-item .chip {
+  direction: ltr;
 }

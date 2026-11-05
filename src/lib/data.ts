@@ -104,3 +104,40 @@ export function refOf(meta: Meta, id: number): [number, number] {
   const s = meta.suras[lo];
   return [s.n, id - s.start + 1];
 }
+
+export interface RootIndex {
+  note: string;
+  k: string[];
+  ar: string[];
+  n: number[];
+  occ: number[][];
+}
+let rootIdxP: Promise<RootIndex> | null = null;
+export function getRootIndex(): Promise<RootIndex> {
+  if (!rootIdxP) {
+    rootIdxP = fetchJson<RootIndex>('roots/index.json');
+    rootIdxP.catch(() => (rootIdxP = null));
+  }
+  return rootIdxP;
+}
+let byAyaP: Promise<Map<number, [number, number][]>> | null = null;
+/** gid -> [[so'z raqami, ildiz indeksi], ...] */
+export function getRootsByAya(): Promise<Map<number, [number, number][]>> {
+  if (!byAyaP) {
+    byAyaP = getRootIndex().then((idx) => {
+      const m = new Map<number, [number, number][]>();
+      idx.occ.forEach((list, ri) => {
+        for (const v of list) {
+          const g = v >> 8;
+          let arr = m.get(g);
+          if (!arr) m.set(g, (arr = []));
+          arr.push([v & 255, ri]);
+        }
+      });
+      for (const arr of m.values()) arr.sort((a, b) => a[0] - b[0]);
+      return m;
+    });
+    byAyaP.catch(() => (byAyaP = null));
+  }
+  return byAyaP;
+}

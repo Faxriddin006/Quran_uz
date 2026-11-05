@@ -1,5 +1,5 @@
 import { h, icon, I } from '../lib/dom.ts';
-import { getMeta, getSura, getTafsir, type Meta, type SuraData, type Edition } from '../lib/data.ts';
+import { getMeta, getSura, getTafsir, getRootIndex, getRootsByAya, type Meta, type SuraData, type Edition } from '../lib/data.ts';
 import { settings, saveSettings, isBookmarked, toggleBookmark, setLastRead } from '../lib/store.ts';
 import { arNum, copyText, siteUrl, toast, typeLabel, setTitle, debounce } from '../lib/util.ts';
 import { stripFootnoteMarks } from '../lib/normalize.ts';
@@ -219,6 +219,7 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
     const playBtn = h('button', { class: 'icon-btn play', type: 'button', 'aria-label': `${sm.n}:${a} oyatni tinglash`, title: 'Tinglash' }, icon(I.play));
     const bmBtn = h('button', { class: 'icon-btn', type: 'button', 'aria-pressed': String(bm), 'aria-label': 'Saqlash', title: 'Saqlash' }, icon(I.bookmark));
     const tafBtn = h('button', { class: 'icon-btn', type: 'button', 'aria-expanded': 'false', 'aria-label': 'Tafsir', title: 'Tafsir' }, icon(I.note));
+    const rootBtn = h('button', { class: 'icon-btn', type: 'button', 'aria-expanded': 'false', 'aria-label': 'Soʻzlar va ildizlar', title: 'Soʻzlar va ildizlar' }, icon(I.graph));
     const extra = h('div', { class: 'extra' });
     const el = h(
       'article',
@@ -232,6 +233,7 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
           { class: 'ayah-actions' },
           playBtn,
           tafBtn,
+          rootBtn,
           bmBtn,
           h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Nusxa olish', title: 'Nusxa olish', onclick: () => copyAyah(a) }, icon(I.copy)),
           h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Ulashish', title: 'Ulashish', onclick: () => shareAyah(a) }, icon(I.share)),
@@ -247,7 +249,14 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
       bmBtn.setAttribute('aria-pressed', String(on));
       toast(on ? `${sm.n}:${a} saqlandi` : `${sm.n}:${a} saqlanganlardan olib tashlandi`);
     });
-    tafBtn.addEventListener('click', () => toggleTafsir(extra, tafBtn, i));
+    tafBtn.addEventListener('click', () => {
+      rootBtn.setAttribute('aria-expanded', 'false');
+      toggleTafsir(extra, tafBtn, i);
+    });
+    rootBtn.addEventListener('click', () => {
+      tafBtn.setAttribute('aria-expanded', 'false');
+      toggleRoots(extra, rootBtn, i);
+    });
     return el;
   }
 
@@ -284,6 +293,46 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
       }
     };
     show(tafsirChoice);
+  }
+
+  async function toggleRoots(extra: HTMLElement, btn: HTMLButtonElement, i: number) {
+    if (btn.getAttribute('aria-expanded') === 'true') {
+      extra.replaceChildren();
+      btn.setAttribute('aria-expanded', 'false');
+      return;
+    }
+    btn.setAttribute('aria-expanded', 'true');
+    const box = h('div', { class: 'tafsir-box roots-box' }, h('div', { class: 'spinner', style: { width: '22px', height: '22px' } }));
+    extra.replaceChildren(box);
+    try {
+      const [idx, byAya] = await Promise.all([getRootIndex(), getRootsByAya()]);
+      const gid = sm.start + i;
+      const pairs = byAya.get(gid) ?? [];
+      let w = 0;
+      const toks = data.ar[i].split(' ').map((t) => (/^[\u06D6-\u06ED\u0615-\u061A\u06DE\u06E9]+$/.test(t) ? { t, w: 0 } : { t, w: ++w }));
+      const known = pairs.some(([wi]) => wi > 0);
+      const items = known
+        ? toks
+            .filter((tk) => tk.w)
+            .map((tk) => {
+              const rs = pairs.filter(([wi]) => wi === tk.w).map(([, ri]) => ri);
+              return h(
+                'div',
+                { class: 'rw-item' },
+                h('span', { class: 'ar rw-word', lang: 'ar' }, tk.t),
+                rs.length
+                  ? rs.map((ri) => h('a', { class: 'chip ar-chip', href: `#/ildizlar?ildiz=${encodeURIComponent(idx.k[ri])}`, title: `${idx.k[ri]} — Qurʼonda ${idx.n[ri]} marta` }, h('span', { class: 'ar', lang: 'ar' }, idx.ar[ri]), h('small', null, String(idx.n[ri]))))
+                  : h('span', { class: 'muted rw-none' }, 'ildizsiz'),
+              );
+            })
+        : [...new Set(pairs.map(([, ri]) => ri))].map((ri) => h('a', { class: 'chip ar-chip', href: `#/ildizlar?ildiz=${encodeURIComponent(idx.k[ri])}` }, h('span', { class: 'ar', lang: 'ar' }, idx.ar[ri]), h('small', null, String(idx.n[ri]))));
+      box.replaceChildren(
+        h('div', { class: 'rw-list' }, items),
+        h('span', { class: 'src' }, 'Ildizlar: Quranic Arabic Corpus (morfologiya v0.4, GNU GPL). Soʻzlar — Tanzil matnidan. Raqam — ildizning Qurʼonda necha marta uchrashi. Ildizni bossangiz, grafda ochiladi. ', h('a', { href: '#/manbalar' }, 'Manbalar')),
+      );
+    } catch {
+      box.replaceChildren(h('p', { class: 'muted' }, 'Ildizlarni yuklab boʻlmadi.'));
+    }
   }
 
   function renderAyahs() {
@@ -394,14 +443,22 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
     }
     const el = document.getElementById(`a${a}`);
     if (!el) return;
-    const go = () => el.scrollIntoView({ block: 'start' });
+    const go = () => !disposed && !userMoved && el.scrollIntoView({ block: 'start' });
+    let userMoved = false;
+    const stop = () => {
+      userMoved = true;
+      ro.disconnect();
+    };
+    // Shrift yuklanishi yoki content-visibility tufayli balandliklar o'zgarsa, oyatni joyida ushlab turamiz
+    const ro = new ResizeObserver(() => go());
+    ro.observe(list);
+    for (const ev of ['wheel', 'touchstart', 'keydown', 'mousedown']) addEventListener(ev, stop, { once: true, passive: true });
+    setTimeout(stop, 2500);
     go();
     el.classList.remove('target');
     void el.offsetWidth;
     el.classList.add('target');
-    requestAnimationFrame(go);
-    document.fonts?.ready.then(() => !disposed && go());
-    setTimeout(() => !disposed && go(), 350);
+    document.fonts?.ready.then(go);
   }
   if (target) focus(target);
   else window.scrollTo({ top: 0 });

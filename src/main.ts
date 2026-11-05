@@ -161,6 +161,7 @@ type ReaderApi = { focus: (ayah: number | null) => void };
 declare global {
   interface Window {
     __reader?: ReaderApi & { sura: number };
+    __searchQ?: string;
   }
 }
 
@@ -173,7 +174,7 @@ async function route() {
     return;
   }
   // Qidiruv so'rovi o'zgarishi — qidiruv sahifasi o'zi boshqaradi
-  if (r.name === 'search' && current?.name === 'search') {
+  if (r.name === 'search' && current?.name === 'search' && (r.query?.get('q') ?? '') === (window.__searchQ ?? '')) {
     current = r;
     return;
   }

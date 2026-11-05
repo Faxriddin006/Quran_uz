@@ -1,7 +1,7 @@
 import Graph from 'graphology';
 import Sigma from 'sigma';
 import { h, icon, I } from '../lib/dom.ts';
-import { getMeta, fetchJson, refOf } from '../lib/data.ts';
+import { getMeta, fetchJson, refOf, getRootIndex } from '../lib/data.ts';
 import { setTitle, typeLabel } from '../lib/util.ts';
 import type { Route } from '../main.ts';
 
@@ -10,16 +10,8 @@ interface GraphData {
   r: [number, number][];
   e: number[];
 }
-interface RootIndex {
-  note: string;
-  k: string[];
-  ar: string[];
-  n: number[];
-  occ: number[][];
-}
 
 let graphP: Promise<GraphData> | null = null;
-let indexP: Promise<RootIndex> | null = null;
 let arP: Promise<string[]> | null = null;
 let docsP: Promise<string[]> | null = null;
 const once = <T,>(p: Promise<T> | null, f: () => Promise<T>, set: (v: Promise<T> | null) => void): Promise<T> => {
@@ -30,7 +22,7 @@ const once = <T,>(p: Promise<T> | null, f: () => Promise<T>, set: (v: Promise<T>
   return np;
 };
 const getGraph = () => once(graphP, () => fetchJson<GraphData>('roots/graph.json'), (v) => (graphP = v));
-const getIndex = () => once(indexP, () => fetchJson<RootIndex>('roots/index.json'), (v) => (indexP = v));
+const getIndex = getRootIndex;
 const getAr = () => once(arP, () => fetchJson<string[]>('ar.json'), (v) => (arP = v));
 const getDocs = () => once(docsP, () => fetchJson<string[]>('search/docs-t.json'), (v) => (docsP = v));
 
@@ -107,8 +99,8 @@ export async function render(root: HTMLElement, r: Route) {
   );
 
   const [gd, idx] = await Promise.all([getGraph(), getIndex(), document.fonts?.load('16px "Amiri Quran"').catch(() => null)]);
-  getAr();
-  getDocs();
+  // Sahifa qobig'i avval chizilsin, keyin og'ir graf qurilsin
+  await new Promise((res) => requestAnimationFrame(() => setTimeout(res, 0)));
 
   // ---------- Graf ----------
   const scale = Math.max(0.55, Math.min(1, stage.clientWidth / 1100));
@@ -130,6 +122,7 @@ export async function render(root: HTMLElement, r: Route) {
       rootHi: cssVar('--accent'),
       edge: withAlpha(cssVar('--muted'), 0.07),
       edgeHi: withAlpha(cssVar('--accent'), 0.55),
+      edgeFilter: withAlpha(cssVar('--accent'), 0.25),
       faded: withAlpha(cssVar('--muted'), 0.12),
       label: cssVar('--ink'),
       surface: cssVar('--surface'),
@@ -188,6 +181,7 @@ export async function render(root: HTMLElement, r: Route) {
       return res;
     },
     edgeReducer: (edge, data) => {
+      if (!filterSet && !hovered && !selected) return { ...data, color: C.edge, size: 0.6 };
       const res: Record<string, unknown> = { ...data, color: C.edge, size: 0.6 };
       const [a, b] = graph.extremities(edge);
       if (filterSet && (!filterSet.has(a) || !filterSet.has(b))) return { ...res, hidden: true };
@@ -199,7 +193,7 @@ export async function render(root: HTMLElement, r: Route) {
           res.zIndex = 1;
         } else res.hidden = true;
       } else if (filterSet) {
-        res.color = withAlpha(cssVar('--accent'), 0.25);
+        res.color = C.edgeFilter;
       }
       return res;
     },

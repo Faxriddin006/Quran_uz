@@ -70,7 +70,7 @@ export async function render(root: HTMLElement, _r: Route) {
     hajm: h('button', { class: 'chip', type: 'button' }, 'Hajm boʻyicha'),
   };
   const caption = h('p', { class: 'muted', style: { margin: '0', fontSize: '14px' }, 'aria-live': 'polite' });
-  const box = h('div', { class: 'tmap', role: 'list', 'aria-label': 'Suralar xaritasi' });
+  const box = h('nav', { class: 'tmap', 'aria-label': 'Suralar xaritasi' });
   const tip = h('div', { class: 'tmap-tip', hidden: true });
 
   const tiles = new Map<number, HTMLAnchorElement>();
@@ -80,7 +80,6 @@ export async function render(root: HTMLElement, _r: Route) {
       {
         class: `tile ${s.type}`,
         href: `#${s.n}`,
-        role: 'listitem',
         'aria-label': `${s.n}. ${s.tr} — ${s.ayas} oyat, ${typeLabel(s.type)}, nuzul tartibi ${s.order}`,
       },
       h('span', { class: 'tn' }, String(s.n)),

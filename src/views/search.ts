@@ -50,6 +50,7 @@ function highlight(text: string, terms: Set<string>): (string | HTMLElement)[] {
 
 export async function render(root: HTMLElement, r: Route) {
   setTitle('Qidiruv');
+  window.__searchQ = (r.query?.get('q') ?? '').trim();
   const meta = await getMeta();
   const initial = r.query?.get('q') ?? '';
 
@@ -102,6 +103,7 @@ export async function render(root: HTMLElement, r: Route) {
 
   async function run(q: string) {
     const v = q.trim();
+    window.__searchQ = v;
     history.replaceState(null, '', v ? `#/qidiruv?q=${encodeURIComponent(v)}` : '#/qidiruv');
     results.replaceChildren();
     shown = 0;

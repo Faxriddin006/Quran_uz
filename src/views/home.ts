@@ -76,7 +76,7 @@ export async function render(root: HTMLElement, _r: Route) {
     'aria-label': 'Suralarni saralash',
     autocomplete: 'off',
   });
-  const grid = h('div', { class: 'sura-grid', role: 'list' });
+  const grid = h('div', { class: 'sura-grid' });
   const orderBtns = {
     mushaf: h('button', { class: 'chip', type: 'button' }, 'Mushaf tartibi'),
     nuzul: h('button', { class: 'chip', type: 'button' }, 'Nuzul tartibi'),
@@ -135,7 +135,7 @@ function quickCard(href: string, ic: string, title: string, sub: string) {
 function suraCard(s: SuraMeta): HTMLAnchorElement {
   return h(
     'a',
-    { class: 'sura-card', href: `#${s.n}`, role: 'listitem', 'aria-label': `${s.n}. ${s.tr}, ${s.ayas} oyat, ${typeLabel(s.type)}` },
+    { class: 'sura-card', href: `#${s.n}`, 'aria-label': `${s.n}. ${s.tr}, ${s.ayas} oyat, ${typeLabel(s.type)}` },
     h('span', { class: 'sura-num' }, String(s.n)),
     h(
       'span',
