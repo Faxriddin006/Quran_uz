@@ -20,6 +20,8 @@ export function save(key: string, value: unknown): void {
 
 export type Theme = 'auto' | 'light' | 'dark';
 export type ReaderLayout = 'split' | 'stack' | 'mushaf';
+export type AudioMode = 'ar' | 'uz' | 'both';
+export type UzAudioEdition = 'auto' | 'sodiq_lat' | 'sodiq_cyr' | 'mansur_cyr';
 export interface Settings {
   theme: Theme;
   arSize: number;
@@ -28,6 +30,9 @@ export interface Settings {
   showAr: boolean;
   showTranslit: boolean;
   reciter: string;
+  audioMode: AudioMode;
+  uzAudioEdition: UzAudioEdition;
+  uzVoice: string;
   layout: ReaderLayout;
   audioSpeed: number;
   audioRepeat: number; // 1 = 1x, 2 = 2x, 3 = 3x, 0 = cheksiz
@@ -42,6 +47,9 @@ const DEFAULTS: Settings = {
   showAr: true,
   showTranslit: true,
   reciter: 'Alafasy_128kbps',
+  audioMode: 'ar',
+  uzAudioEdition: 'auto',
+  uzVoice: 'auto',
   layout: 'split',
   audioSpeed: 1,
   audioRepeat: 1,
@@ -54,6 +62,9 @@ if (!['split', 'stack', 'mushaf'].includes(settings.layout)) settings.layout = '
 if (![0.85, 1, 1.25].includes(settings.audioSpeed)) settings.audioSpeed = 1;
 if (![0, 1, 2, 3].includes(settings.audioRepeat)) settings.audioRepeat = 1;
 if (typeof settings.showTranslit !== 'boolean') settings.showTranslit = true;
+if (!['ar', 'uz', 'both'].includes(settings.audioMode)) settings.audioMode = 'ar';
+if (!['auto', 'sodiq_lat', 'sodiq_cyr', 'mansur_cyr'].includes(settings.uzAudioEdition)) settings.uzAudioEdition = 'auto';
+if (typeof settings.uzVoice !== 'string' || !settings.uzVoice) settings.uzVoice = 'auto';
 
 export function saveSettings(): void {
   save('settings', settings);

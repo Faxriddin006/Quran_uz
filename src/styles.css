@@ -2112,4 +2112,36 @@ mark {
   font-weight: 600;
 }
 
-
+/* ---------- O'zbekcha ketma-ket audio va aktiv blok ajratishi ---------- */
+.ayah-actions .uz-play-btn {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  width: auto;
+  min-width: 36px;
+  padding: 0 7px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+}
+.ayah-actions .uz-play-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.ayah-actions .uz-play-btn.playing {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.ayah .ar-text.playing-part {
+  color: var(--accent);
+  transition: color 0.2s;
+}
+.ayah .tr.playing-part {
+  padding: 8px 12px;
+  border-left: 3px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface-2));
+  border-radius: 0 10px 10px 0;
+  transition:
+    background 0.2s,
+    border-color 0.2s;
+}

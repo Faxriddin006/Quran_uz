@@ -191,12 +191,23 @@ export async function render(root: HTMLElement, _r: Route) {
         h('blockquote', { lang: 'en' }, CORPUS_TERMS),
       ),
 
-      h('h2', null, 'Audio (qiroat)'),
-      srcCard('EveryAyah.com — oyatma-oyat MP3', [
+      h('h2', null, 'Audio (qiroat va oʻzbekcha maʼnolar audiosi)'),
+      srcCard('EveryAyah.com — arabcha oyatma-oyat MP3 qiroat', [
         ['Manba', ext('https://everyayah.com/', 'everyayah.com')],
         ['Qorilar', RECITERS.map((r) => r.name).join(', ')],
         ['Ishlatilishi', 'Fayllar bu saytda saqlanmaydi; brauzer ularni toʻgʻridan-toʻgʻri everyayah.com dan yuklaydi.'],
         ['Litsenziya', 'everyayah.com sahifalarida aniq foydalanish shartlari topilmadi (2026-11-05 da tekshirildi).'],
+      ]),
+      srcCard('Oʻzbekcha oyatma-oyat ketma-ket audio (Web Speech API / TTS)', [
+        ['Matn manbasi', 'Saytdagi asl oʻzbekcha tarjima matnlari (Muhammad Sodiq Muhammad Yusuf lotin/kirill yoki Alouddin Mansur kirill nashri — foydalanuvchi tanloviga koʻra).'],
+        [
+          'Ishlash tartibi',
+          'Ochiq litsenziyali 6236 oyatma-oyat oʻzbekcha MP3 yozuvlar toʻplami mavjud boʻlmagani sababli, oʻzbekcha audio brauzer va operatsion tizimning Web Speech API (SpeechSynthesis) dvigateli orqali toʻgʻridan-toʻgʻri asl tarjima matnidan (izoh raqamlarisiz va fonetik moslashtirilgan holda) oyatma-oyat oʻqiladi (src/lib/uz-audio.ts).',
+        ],
+        [
+          'Rejimlar',
+          '«Faqat arabcha», «Faqat oʻzbekcha» (barcha oyatlarni ketma-ket oʻzbek tilida oʻqish) hamda «Arabcha + Oʻzbekcha ketma-ket» (har bir oyatning arabcha tilovatidan soʻng darhol oʻzbekcha maʼnosini oʻqib keyingi oyatga oʻtish).',
+        ],
       ]),
 
       h('h2', null, 'Shrift'),

@@ -13,9 +13,27 @@ import {
   type SuraData,
   type Edition,
 } from '../lib/data.ts';
-import { settings, saveSettings, isBookmarked, toggleBookmark, setLastRead, type ReaderLayout } from '../lib/store.ts';
+import {
+  settings,
+  saveSettings,
+  isBookmarked,
+  toggleBookmark,
+  setLastRead,
+  type ReaderLayout,
+  type AudioMode,
+  type UzAudioEdition,
+} from '../lib/store.ts';
 import { arNum, copyText, siteUrl, toast, typeLabel, setTitle, debounce } from '../lib/util.ts';
 import { stripFootnoteMarks, normTerm, normAr, tokenize } from '../lib/normalize.ts';
+import {
+  speakUzAyah,
+  stopUzSpeech,
+  pauseUzSpeech,
+  resumeUzSpeech,
+  isUzSpeaking,
+  isUzPaused,
+  getUzVoiceOptions,
+} from '../lib/uz-audio.ts';
 import { footerNote } from './home.ts';
 import type { Route } from '../main.ts';
 
@@ -55,10 +73,26 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
   audio.preload = 'none';
   nextPreload.preload = 'none';
   let playing: number | null = null;
+  let playingStep: 'ar' | 'uz' = 'ar';
   let repeatCount = 0;
   let disposed = false;
   let suraFilter = '';
   let mushafSelectedAyah = target && target >= 1 && target <= sm.ayas ? target : 1;
+
+  function getActiveUzEdition(): Edition {
+    if (settings.uzAudioEdition !== 'auto') {
+      const found = meta.editions.find((e) => e.id === settings.uzAudioEdition);
+      if (found) return found;
+    }
+    const firstActive = meta.editions.find((e) => settings.editions.includes(e.id));
+    return firstActive ?? meta.editions[0];
+  }
+
+  function isAudioPaused(): boolean {
+    if (playing == null) return true;
+    if (playingStep === 'ar') return audio.paused;
+    return isUzPaused() || !isUzSpeaking();
+  }
 
   const jStart = juzOf(meta, sm.n, 1);
   const jEnd = juzOf(meta, sm.n, sm.ayas);
@@ -138,14 +172,47 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
     {
       class: 'btn small',
       type: 'button',
-      title: 'Surani tinglash',
+      title: 'Arabcha qiroatni ketma-ket tinglash',
       onclick: () => {
-        if (playing != null && !audio.paused) stopAudio();
-        else playAyah(playing ?? 1);
+        if (playing != null && !isAudioPaused() && settings.audioMode !== 'uz') {
+          stopAudio();
+        } else {
+          if (settings.audioMode === 'uz') {
+            settings.audioMode = 'ar';
+            saveSettings();
+            paintAudioModeBtns();
+            paintAudioControls();
+          }
+          playAyah(playing ?? 1, 'ar');
+        }
       },
     },
     icon(I.play),
-    h('span', { class: 'lbl' }, 'Tinglash'),
+    h('span', { class: 'lbl' }, 'Arabcha'),
+  );
+
+  const playUzSuraBtn = h(
+    'button',
+    {
+      class: 'btn small',
+      type: 'button',
+      title: 'Oʻzbekcha maʼnolar tarjimasini oyatma-oyat ketma-ket tinglash',
+      onclick: () => {
+        if (playing != null && !isAudioPaused() && (settings.audioMode === 'uz' || playingStep === 'uz')) {
+          stopAudio();
+        } else {
+          if (settings.audioMode === 'ar') {
+            settings.audioMode = 'uz';
+            saveSettings();
+            paintAudioModeBtns();
+            paintAudioControls();
+          }
+          playAyah(playing ?? 1, 'uz');
+        }
+      },
+    },
+    icon(I.play),
+    h('span', null, 'Oʻzb audio'),
   );
 
   const tlToolbarBtn = h(
@@ -179,7 +246,7 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
   const toolbar = h(
     'div',
     { class: 'toolbar' },
-    h('div', { class: 'wrap' }, prevA, sel, nextA, h('span', { class: 'sep' }), jumpForm, filterInput, tlToolbarBtn, playSuraBtn, panelBtn),
+    h('div', { class: 'wrap' }, prevA, sel, nextA, h('span', { class: 'sep' }), jumpForm, filterInput, tlToolbarBtn, playSuraBtn, playUzSuraBtn, panelBtn),
     h('div', { class: 'reading-progress', 'aria-hidden': 'true' }, progressFill),
   );
 
@@ -276,15 +343,86 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
   };
   const saveSettingsDebounced = debounce(saveSettings, 300);
 
+  const audioModeGroup = h('div', { class: 'seg', role: 'group', 'aria-label': 'Audio tinglash rejimi' });
+  const AUDIO_MODES: { id: AudioMode; label: string }[] = [
+    { id: 'ar', label: 'Faqat arabcha' },
+    { id: 'uz', label: 'Faqat oʻzbekcha' },
+    { id: 'both', label: 'Arabcha + Oʻzbekcha ketma-ket' },
+  ];
+  function paintAudioModeBtns() {
+    audioModeGroup.replaceChildren(
+      ...AUDIO_MODES.map((m) =>
+        h(
+          'button',
+          {
+            class: 'chip',
+            type: 'button',
+            'aria-pressed': String(settings.audioMode === m.id),
+            onclick: () => {
+              settings.audioMode = m.id;
+              saveSettings();
+              paintAudioModeBtns();
+              paintAudioControls();
+              if (playing != null) playAyah(playing);
+            },
+          },
+          m.label,
+        ),
+      ),
+    );
+  }
+  paintAudioModeBtns();
+
   const reciterSel = h(
     'select',
-    { class: 'field', 'aria-label': 'Qori', style: { maxWidth: '340px', padding: '8px 10px' } },
-    RECITERS.map((rc) => h('option', { value: rc.id, selected: rc.id === settings.reciter }, rc.name)),
+    { class: 'field', 'aria-label': 'Arabcha qori', style: { maxWidth: '340px', padding: '8px 10px' } },
+    RECITERS.map((rc) => h('option', { value: rc.id, selected: rc.id === settings.reciter }, `Arabcha: ${rc.name}`)),
   );
   reciterSel.addEventListener('change', () => {
     settings.reciter = reciterSel.value;
     saveSettings();
-    if (playing != null) playAyah(playing);
+    if (playing != null && playingStep === 'ar') playAyah(playing, 'ar');
+  });
+
+  const uzEdSel = h(
+    'select',
+    { class: 'field', 'aria-label': 'Oʻzbekcha audio tarjimasi', style: { maxWidth: '340px', padding: '8px 10px' } },
+    h('option', { value: 'auto', selected: settings.uzAudioEdition === 'auto' }, 'Oʻzbekcha matn: Tanlangan tarjima (avtomatik)'),
+    ...meta.editions.map((e) =>
+      h('option', { value: e.id, selected: settings.uzAudioEdition === e.id }, `Oʻzbekcha matn: ${e.title} (${e.script})`),
+    ),
+  );
+  uzEdSel.addEventListener('change', () => {
+    settings.uzAudioEdition = uzEdSel.value as UzAudioEdition;
+    saveSettings();
+    if (playing != null && playingStep === 'uz') playAyah(playing, 'uz');
+  });
+
+  const uzVoiceSel = h('select', {
+    class: 'field',
+    'aria-label': 'Oʻzbekcha ovoz',
+    style: { maxWidth: '340px', padding: '8px 10px' },
+  });
+  function populateVoiceSelect() {
+    const vOpts = getUzVoiceOptions();
+    uzVoiceSel.replaceChildren(
+      h('option', { value: 'auto', selected: settings.uzVoice === 'auto' }, 'Ovoz: Avtomatik (eng mos ovoz)'),
+      ...vOpts.map((v) => h('option', { value: v.uri, selected: settings.uzVoice === v.uri }, `Ovoz: ${v.name}`)),
+    );
+    uzVoiceSel.hidden = vOpts.length === 0;
+  }
+  populateVoiceSelect();
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+    try {
+      window.speechSynthesis.addEventListener?.('voiceschanged', populateVoiceSelect);
+    } catch {
+      /* ignore */
+    }
+  }
+  uzVoiceSel.addEventListener('change', () => {
+    settings.uzVoice = uzVoiceSel.value;
+    saveSettings();
+    if (playing != null && playingStep === 'uz') playAyah(playing, 'uz');
   });
 
   const panel = h(
@@ -301,9 +439,15 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
       h('h3', null, 'Matn oʻlchami'),
       h('div', { class: 'row' }, range('Arabcha matn', 20, 52, () => settings.arSize, (v) => (settings.arSize = v))),
       h('div', { class: 'row' }, range('Tarjima va oʻqilishi', 13, 26, () => settings.trSize, (v) => (settings.trSize = v))),
-      h('h3', null, 'Qiroat (audio)'),
-      h('div', { class: 'row' }, reciterSel),
-      h('p', { class: 'muted', style: { fontSize: '13px', margin: 0 } }, 'Audio everyayah.com saytidan oyatma-oyat yuklanadi. ', h('a', { href: '#/manbalar' }, 'Manbalar')),
+      h('h3', null, 'Qiroat va Oʻzbekcha audio'),
+      h('div', { class: 'row' }, audioModeGroup),
+      h('div', { class: 'row' }, reciterSel, uzEdSel, uzVoiceSel),
+      h(
+        'p',
+        { class: 'muted', style: { fontSize: '13px', margin: 0 } },
+        'Arabcha qiroat everyayah.com saytidan, oʻzbekcha maʼnolar tarjimasi esa tanlangan tarjima matni asosida oyatma-oyat ketma-ket oʻqiladi. ',
+        h('a', { href: '#/manbalar' }, 'Manbalar'),
+      ),
     ),
   );
   panelBtn.addEventListener('click', () => {
@@ -410,7 +554,21 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
     const sajda = sajdaOf(meta, sm.n, a);
     const jz = juzOf(meta, sm.n, a);
     const pg = pageOf(meta, sm.n, a);
-    const playBtn = h('button', { class: 'icon-btn play', type: 'button', 'aria-label': `${sm.n}:${a} oyatni tinglash`, title: 'Tinglash' }, icon(I.play));
+    const playBtn = h(
+      'button',
+      { class: 'icon-btn play', type: 'button', 'aria-label': `${sm.n}:${a} oyatni tinglash`, title: 'Oyatni tinglash (arabcha / tanlangan rejim)' },
+      icon(I.play),
+    );
+    const playUzBtn = h(
+      'button',
+      {
+        class: 'icon-btn uz-play-btn',
+        type: 'button',
+        'aria-label': `${sm.n}:${a} oyatning oʻzbekcha maʼnosini tinglash`,
+        title: 'Oʻzbekcha tarjimani ketma-ket tinglash',
+      },
+      'Oʻz',
+    );
     const bmBtn = h('button', { class: 'icon-btn', type: 'button', 'aria-pressed': String(bm), 'aria-label': 'Saqlash', title: 'Saqlash' }, icon(I.bookmark));
     const tafBtn = h('button', { class: 'icon-btn', type: 'button', 'aria-expanded': 'false', 'aria-label': 'Tafsir', title: 'Tafsir' }, icon(I.note));
     const rootBtn = h('button', { class: 'icon-btn', type: 'button', 'aria-expanded': 'false', 'aria-label': 'Soʻzlar va ildizlar', title: 'Soʻzlar va ildizlar' }, icon(I.graph));
@@ -435,6 +593,7 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
           'div',
           { class: 'ayah-actions' },
           playBtn,
+          playUzBtn,
           tafBtn,
           rootBtn,
           bmBtn,
@@ -453,7 +612,26 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
         : null,
       extra,
     );
-    playBtn.addEventListener('click', () => (playing === a && !audio.paused ? stopAudio() : playAyah(a)));
+    playBtn.addEventListener('click', () => {
+      if (playing === a && !isAudioPaused() && (settings.audioMode !== 'uz' || playingStep === 'ar')) {
+        stopAudio();
+      } else {
+        playAyah(a);
+      }
+    });
+    playUzBtn.addEventListener('click', () => {
+      if (playing === a && playingStep === 'uz' && !isAudioPaused()) {
+        stopAudio();
+      } else {
+        if (settings.audioMode === 'ar') {
+          settings.audioMode = 'uz';
+          saveSettings();
+          paintAudioModeBtns();
+          paintAudioControls();
+        }
+        playAyah(a, 'uz');
+      }
+    });
     bmBtn.addEventListener('click', () => {
       const on = toggleBookmark(sm.n, a);
       bmBtn.setAttribute('aria-pressed', String(on));
@@ -737,6 +915,7 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
   const playerPlayBtn = h('button', { class: 'icon-btn ap-play', type: 'button', 'aria-label': 'Toʻxtatib turish / davom ettirish' }, icon(I.pause));
   const playerPrevBtn = h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Oldingi oyat', title: 'Oldingi oyat' }, icon(I.left));
   const playerNextBtn = h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Keyingi oyat', title: 'Keyingi oyat' }, icon(I.right));
+  const modeBtn = h('button', { class: 'chip small ap-chip', type: 'button', title: 'Audio rejimi: Arabcha / Oʻzbekcha / Ikkalasi ketma-ket' });
   const repeatBtn = h('button', { class: 'chip small ap-chip', type: 'button', title: 'Oyatni takrorlash (yodlash uchun)' });
   const speedBtn = h('button', { class: 'chip small ap-chip', type: 'button', title: 'Qiroat tezligi' });
   const playerCloseBtn = h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Audioni yopish', title: 'Yopish' }, icon(I.close));
@@ -745,10 +924,13 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
     'div',
     { class: 'audio-bar card', role: 'region', 'aria-label': 'Audio pleyer', hidden: true },
     h('div', { class: 'ap-info' }, playerRef, playerSub),
-    h('div', { class: 'ap-controls' }, playerPrevBtn, playerPlayBtn, playerNextBtn, repeatBtn, speedBtn, playerCloseBtn),
+    h('div', { class: 'ap-controls' }, playerPrevBtn, playerPlayBtn, playerNextBtn, modeBtn, repeatBtn, speedBtn, playerCloseBtn),
   );
 
   function paintAudioControls() {
+    const modeShort = settings.audioMode === 'ar' ? 'Arabcha' : settings.audioMode === 'uz' ? 'Oʻzbekcha' : 'Ar + Oʻz';
+    modeBtn.textContent = modeShort;
+    modeBtn.classList.toggle('on', settings.audioMode !== 'ar');
     const repLabel = settings.audioRepeat === 0 ? '∞' : `${settings.audioRepeat}×`;
     repeatBtn.replaceChildren(icon(I.repeat), h('span', null, repLabel));
     repeatBtn.classList.toggle('on', settings.audioRepeat !== 1);
@@ -756,6 +938,23 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
     speedBtn.classList.toggle('on', settings.audioSpeed !== 1);
   }
   paintAudioControls();
+
+  modeBtn.addEventListener('click', () => {
+    const order: AudioMode[] = ['ar', 'uz', 'both'];
+    const next = order[(order.indexOf(settings.audioMode) + 1) % order.length];
+    settings.audioMode = next;
+    saveSettings();
+    paintAudioModeBtns();
+    paintAudioControls();
+    const msg =
+      next === 'ar'
+        ? 'Faqat arabcha qiroat'
+        : next === 'uz'
+          ? 'Faqat oʻzbekcha ketma-ket audio'
+          : 'Arabcha + Oʻzbekcha ketma-ket audio';
+    toast(msg);
+    if (playing != null) playAyah(playing);
+  });
 
   repeatBtn.addEventListener('click', () => {
     const order = [1, 2, 3, 0];
@@ -774,16 +973,31 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
     audio.playbackRate = next;
     saveSettings();
     paintAudioControls();
+    if (playing != null && playingStep === 'uz') {
+      playAyah(playing, 'uz');
+    }
   });
 
   playerPlayBtn.addEventListener('click', () => {
     if (playing == null) return;
-    if (audio.paused) {
-      audio.play().catch(() => {});
-      markPlaying(playing);
+    if (playingStep === 'ar') {
+      if (audio.paused) {
+        audio.play().catch(() => {});
+        markPlaying(playing);
+      } else {
+        audio.pause();
+        markPlaying(playing);
+      }
     } else {
-      audio.pause();
-      markPlaying(playing);
+      if (isUzPaused()) {
+        resumeUzSpeech();
+        markPlaying(playing);
+      } else if (isUzSpeaking()) {
+        pauseUzSpeech();
+        markPlaying(playing);
+      } else {
+        playAyah(playing, 'uz');
+      }
     }
   });
   playerPrevBtn.addEventListener('click', () => {
@@ -797,14 +1011,21 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
   function updateMediaSession(a: number) {
     if (!('mediaSession' in navigator)) return;
     const rc = RECITERS.find((r) => r.id === settings.reciter)?.name ?? settings.reciter;
+    const edTitle = getActiveUzEdition().title;
     try {
       navigator.mediaSession.metadata = new MediaMetadata({
-        title: `${sm.tr} surasi, ${sm.n}:${a}`,
-        artist: rc,
+        title: `${sm.tr} surasi, ${sm.n}:${a}${playingStep === 'uz' ? ' (Oʻzbekcha)' : ''}`,
+        artist: playingStep === 'uz' ? edTitle : rc,
         album: 'Qurʼoni Karim',
       });
-      navigator.mediaSession.setActionHandler('play', () => audio.play().catch(() => {}));
-      navigator.mediaSession.setActionHandler('pause', () => audio.pause());
+      navigator.mediaSession.setActionHandler('play', () => {
+        if (playingStep === 'ar') audio.play().catch(() => {});
+        else resumeUzSpeech();
+      });
+      navigator.mediaSession.setActionHandler('pause', () => {
+        if (playingStep === 'ar') audio.pause();
+        else pauseUzSpeech();
+      });
       navigator.mediaSession.setActionHandler('previoustrack', playing && playing > 1 ? () => playAyah(playing! - 1) : null);
       navigator.mediaSession.setActionHandler('nexttrack', playing && playing < sm.ayas ? () => playAyah(playing! + 1) : null);
       navigator.mediaSession.setActionHandler('stop', () => stopAudio());
@@ -814,80 +1035,168 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
   }
 
   function markPlaying(a: number | null) {
-    const isPaused = audio.paused;
+    const isPaused = isAudioPaused();
     list.querySelectorAll('.icon-btn.play').forEach((b) => {
       b.classList.remove('playing');
       b.replaceChildren(icon(I.play));
     });
-    list.querySelectorAll('.ayah.playing, .mushaf-ayah.playing').forEach((el) => el.classList.remove('playing'));
+    list.querySelectorAll('.uz-play-btn').forEach((b) => {
+      b.classList.remove('playing');
+      b.textContent = 'Oʻz';
+    });
+    list.querySelectorAll('.ayah.playing, .mushaf-ayah.playing, .ar-text.playing-part, .tr.playing-part').forEach((el) => {
+      el.classList.remove('playing', 'playing-part');
+    });
     if (a == null) {
       miniPlayer.hidden = true;
-      playSuraBtn.replaceChildren(icon(I.play), h('span', { class: 'lbl' }, 'Tinglash'));
+      playSuraBtn.replaceChildren(icon(I.play), h('span', { class: 'lbl' }, 'Arabcha'));
+      playUzSuraBtn.replaceChildren(icon(I.play), h('span', null, 'Oʻzb audio'));
       return;
     }
     miniPlayer.hidden = false;
     playerRef.textContent = `${sm.n}:${a} · ${sm.tr}`;
     playerRef.href = `#${sm.n}:${a}`;
     const rc = RECITERS.find((r) => r.id === settings.reciter)?.name ?? '';
-    playerSub.textContent = rc.split(' (')[0];
+    const uzEd = getActiveUzEdition();
+    const uzEdId = uzEd.id;
+    const uzEdTitle = uzEd.title;
+    if (playingStep === 'uz') {
+      playerSub.textContent = `Oʻzbekcha: ${uzEdTitle}`;
+    } else if (settings.audioMode === 'both') {
+      playerSub.textContent = `${rc.split(' (')[0]} + Oʻzbekcha`;
+    } else {
+      playerSub.textContent = rc.split(' (')[0];
+    }
     playerPlayBtn.replaceChildren(icon(isPaused ? I.play : I.pause));
-    playSuraBtn.replaceChildren(icon(isPaused ? I.play : I.pause), h('span', { class: 'lbl' }, isPaused ? 'Davom' : 'Toʻxtatish'));
+
+    const arActive = playingStep === 'ar' && settings.audioMode !== 'uz';
+    const uzActive = playingStep === 'uz' || settings.audioMode === 'uz';
+    playSuraBtn.replaceChildren(
+      icon(arActive && !isPaused ? I.pause : I.play),
+      h('span', { class: 'lbl' }, arActive && !isPaused ? 'Toʻxtatish' : 'Arabcha'),
+    );
+    playUzSuraBtn.replaceChildren(
+      icon(uzActive && !isPaused ? I.pause : I.play),
+      h('span', null, uzActive && !isPaused ? 'Toʻxtatish' : 'Oʻzb audio'),
+    );
+
     const ayEl = document.getElementById(`a${a}`);
-    if (ayEl) ayEl.classList.add('playing');
+    if (ayEl) {
+      ayEl.classList.add('playing');
+      if (playingStep === 'ar') {
+        ayEl.querySelector('.ar-text')?.classList.add('playing-part');
+      } else {
+        const trEl = ayEl.querySelector(`.tr[data-ed="${uzEdId}"]`) ?? ayEl.querySelector('.tr:not(.translit-box)');
+        trEl?.classList.add('playing-part');
+      }
+    }
     const b = list.querySelector<HTMLButtonElement>(`#a${a} .icon-btn.play`);
-    if (b) {
+    if (b && playingStep === 'ar') {
       b.classList.toggle('playing', !isPaused);
       b.replaceChildren(icon(isPaused ? I.play : I.pause));
     }
-  }
-
-  function playAyah(a: number) {
-    if (playing !== a) repeatCount = 0;
-    playing = a;
-    audio.src = audioUrl(settings.reciter, sm.n, a);
-    audio.playbackRate = settings.audioSpeed;
-    audio.play().catch(() => {
-      toast('Audioni ijro etib boʻlmadi');
-      stopAudio();
-    });
-    if (a < sm.ayas) {
-      nextPreload.src = audioUrl(settings.reciter, sm.n, a + 1);
-      nextPreload.load();
+    const uzB = list.querySelector<HTMLButtonElement>(`#a${a} .uz-play-btn`);
+    if (uzB && playingStep === 'uz') {
+      uzB.classList.toggle('playing', !isPaused);
+      uzB.replaceChildren(icon(isPaused ? I.play : I.pause));
     }
-    updateMediaSession(a);
-    markPlaying(a);
   }
 
-  function stopAudio() {
-    audio.pause();
-    playing = null;
-    repeatCount = 0;
-    markPlaying(null);
+  function scrollAyahIntoViewIfNeeded(a: number) {
+    if (settings.layout === 'mushaf') {
+      mushafSelectedAyah = a;
+      renderAyahs();
+    }
+    const el = document.getElementById(`a${a}`);
+    if (el) {
+      const r = el.getBoundingClientRect();
+      if (r.top < 60 || r.top > innerHeight * 0.72) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
   }
 
-  audio.addEventListener('play', () => playing != null && markPlaying(playing));
-  audio.addEventListener('pause', () => playing != null && markPlaying(playing));
-  audio.addEventListener('ended', () => {
+  function onStepFinished(finishedStep: 'ar' | 'uz') {
     if (disposed || playing == null) return;
+    // Agar "Arabcha + O'zbekcha ketma-ket" rejimida arabcha tugagan bo'lsa, shu oyatning o'zbekchasini o'qiymiz
+    if (settings.audioMode === 'both' && finishedStep === 'ar') {
+      playAyah(playing, 'uz');
+      return;
+    }
+    // Oyat to'liq o'qib bo'lindi — takrorlash yoki keyingi oyatga o'tish
     repeatCount++;
     if (settings.audioRepeat === 0 || repeatCount < settings.audioRepeat) {
-      audio.currentTime = 0;
-      audio.play().catch(() => stopAudio());
+      const startStep = settings.audioMode === 'uz' ? 'uz' : 'ar';
+      playAyah(playing, startStep);
       return;
     }
     repeatCount = 0;
     if (playing < sm.ayas) {
       const next = playing + 1;
       playAyah(next);
-      if (settings.layout === 'mushaf') {
-        mushafSelectedAyah = next;
+      scrollAyahIntoViewIfNeeded(next);
+    } else {
+      stopAudio();
+    }
+  }
+
+  function playAyah(a: number, forceStep?: 'ar' | 'uz') {
+    if (playing !== a) repeatCount = 0;
+    playing = a;
+    const step: 'ar' | 'uz' = forceStep ?? (settings.audioMode === 'uz' ? 'uz' : 'ar');
+    playingStep = step;
+
+    if (step === 'ar') {
+      stopUzSpeech();
+      audio.src = audioUrl(settings.reciter, sm.n, a);
+      audio.playbackRate = settings.audioSpeed;
+      audio.play().catch(() => {
+        toast('Arabcha audioni ijro etib boʻlmadi');
+        stopAudio();
+      });
+      if (a < sm.ayas) {
+        nextPreload.src = audioUrl(settings.reciter, sm.n, a + 1);
+        nextPreload.load();
       }
-      const el = document.getElementById(`a${next}`);
-      if (el) {
-        const r = el.getBoundingClientRect();
-        if (r.top < 0 || r.top > innerHeight * 0.7) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    } else stopAudio();
+      updateMediaSession(a);
+      markPlaying(a);
+    } else {
+      audio.pause();
+      const uzEd = getActiveUzEdition();
+      const rawText = data.tr[uzEd.id]?.[a - 1] ?? data.tr.sodiq_lat[a - 1] ?? '';
+      updateMediaSession(a);
+      markPlaying(a);
+      speakUzAyah({
+        rawText,
+        rate: settings.audioSpeed,
+        preferredVoiceUri: settings.uzVoice,
+        onStart: () => {
+          if (!disposed && playing === a && playingStep === 'uz') markPlaying(a);
+        },
+        onEnd: () => {
+          if (!disposed && playing === a && playingStep === 'uz') onStepFinished('uz');
+        },
+        onError: (msg: string) => {
+          toast(msg);
+          stopAudio();
+        },
+      });
+    }
+  }
+
+  function stopAudio() {
+    audio.pause();
+    stopUzSpeech();
+    playing = null;
+    repeatCount = 0;
+    markPlaying(null);
+  }
+
+  audio.addEventListener('play', () => playing != null && playingStep === 'ar' && markPlaying(playing));
+  audio.addEventListener('pause', () => playing != null && playingStep === 'ar' && markPlaying(playing));
+  audio.addEventListener('ended', () => {
+    if (disposed || playing == null || playingStep !== 'ar') return;
+    onStepFinished('ar');
   });
 
   // ---------- Oʻqish jarayoni (progress) va oxirgi oʻqilgan joy ----------
@@ -972,6 +1281,7 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
     audio.pause();
     audio.src = '';
     nextPreload.src = '';
+    stopUzSpeech();
   };
 }
 

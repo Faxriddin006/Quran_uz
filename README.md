@@ -14,7 +14,7 @@ Arabcha Usmoniy matn va oʻzbekcha tarjimalar bilan Qurʼon oʻqish uchun tezkor
 
 | Boʻlim | Nima qiladi |
 |---|---|
-| **Oʻqish** (`#2`, `#2:255`) | Tanzil Usmoniy arabcha matni (Amiri Quran shrifti, RTL) va tarjimalar 3 koʻrinishda: **Yonma-yon**, **Ketma-ket**, **Mushaf sahifasi** (604 Madina mushafi sahifalari). Juz/Hizb/Sahifa ajratgichlari, sajda oyati belgisi (`۩`), sura ichidan filtrlash, izohlar, tafsir, har bir soʻzning ildizi, va pastki **Audio mini-pleyer** (5 qori, tezlik `0.85×–1.25×`, takrorlash `1×/2×/3×/∞`, MediaSession) |
+| **Oʻqish** (`#2`, `#2:255`) | Tanzil Usmoniy arabcha matni (Amiri Quran shrifti, RTL), **arabcha matnning kirillcha oʻqilishi (талаффуз)** va oʻzbekcha tarjimalar 3 koʻrinishda: **Yonma-yon**, **Ketma-ket**, **Mushaf sahifasi** (604 Madina mushafi sahifalari). Juz/Hizb/Sahifa ajratgichlari, sajda oyati belgisi (`۩`), sura ichidan filtrlash, izohlar, tafsir, har bir soʻzning ildizi va pastki **Audio mini-pleyer** (5 arab qorisi + **Oʻzbekcha ketma-ket audio** va **Arabcha + Oʻzbekcha ketma-ket** rejimi, tezlik `0.85×–1.25×`, takrorlash `1×/2×/3×/∞`, MediaSession) |
 | **Tezkor oʻtish** (`Ctrl+K`, `/`) | Istalgan sahifadan tabiiy tilda tezkor oʻtish: `2:255`, `Baqara 255`, `Yosin`, `30-juz`, `50-sahifa`, `sajda` |
 | **Qidiruv** (`#/qidiruv`) | Oldindan qurilgan MiniSearch indeksi + arabcha matn boʻyicha qidiruv (`normAr`). Lotin, kirill (`rahmat` = `раҳмат`), fonetik oʻzbekcha sura nomlari (`Fotiha`, `Yosin`, `Ixlos`, `Voqea`) va sura/Makkiy-Madaniy filtrlari |
 | **Suralar xaritasi** (`#/xarita`) | 114 sura — yuzasi oyatlar soniga mutanosib treemap; Makkiy/Madaniy filtri, sura qidiruvi va mushaf/nuzul/hajm tartiblari orasida animatsiyali oʻtish |
