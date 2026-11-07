@@ -1,6 +1,7 @@
 import './styles.css';
 import { h, icon, I } from './lib/dom.ts';
-import { settings, saveSettings, type Theme } from './lib/store.ts';
+import { getMeta, parseQuickNav, type QuickNavItem } from './lib/data.ts';
+import { settings, saveSettings, getLastRead, type Theme } from './lib/store.ts';
 import { setTitle } from './lib/util.ts';
 
 export type Cleanup = void | (() => void);
@@ -42,6 +43,10 @@ export function parseRoute(hash: string): Route {
   const path = pathPart.replace(/^\/+/, '');
   const [head, ...rest] = path.split('/');
   const query = new URLSearchParams(qs || '');
+  if (head === 'sahifa') {
+    query.set('tab', 'sahifa');
+    return { name: 'juz', query, rest: rest.join('/') };
+  }
   const map: Record<string, string> = {
     '': 'home',
     qidiruv: 'search',
@@ -86,6 +91,168 @@ function themeButton(): HTMLButtonElement {
   return b;
 }
 
+// ---------- Tezkor o'tish (Ctrl+K) ----------
+let qjBackdrop: HTMLElement | null = null;
+export async function openQuickJump() {
+  if (qjBackdrop) {
+    qjBackdrop.remove();
+    qjBackdrop = null;
+    return;
+  }
+  const meta = await getMeta().catch(() => null);
+  const input = h('input', {
+    class: 'field qj-input',
+    type: 'search',
+    placeholder: 'Sura, oyat (2:255, Yosin 10), 30-juz, 50-sahifa yoki soʻz…',
+    'aria-label': 'Tezkor oʻtish yoki qidiruv',
+    autocomplete: 'off',
+  });
+  const listEl = h('div', { class: 'qj-list', role: 'listbox' });
+  let activeIdx = 0;
+  let currentItems: QuickNavItem[] = [];
+
+  const close = () => {
+    qjBackdrop?.remove();
+    qjBackdrop = null;
+  };
+  const go = (href: string) => {
+    close();
+    location.hash = href;
+  };
+
+  function renderItems() {
+    const v = input.value.trim();
+    const items: QuickNavItem[] = [];
+    if (!v) {
+      const last = getLastRead();
+      if (last && meta) {
+        const sm = meta.suras[last.s - 1];
+        items.push({
+          href: `#${last.s}:${last.a}`,
+          badge: 'Davom',
+          title: `Oxirgi oʻqilgan: ${sm.tr} ${last.s}:${last.a}`,
+          sub: 'Oʻqishni kelgan joydan davom ettirish',
+          ar: sm.ar,
+        });
+      }
+      items.push(
+        { href: '#1', badge: '1-sura', title: '1. Al-Fatihah surasi', sub: '7 oyat · 1-juz · 1-sahifa', ar: 'الفاتحة' },
+        { href: '#2:255', badge: '2:255', title: 'Oyatul Kursiy (Al-Baqarah, 255)', sub: '3-juz · 42-sahifa', ar: 'البقرة' },
+        { href: '#18', badge: '18-sura', title: '18. Al-Kahf surasi', sub: '110 oyat · 15–16-juzlar', ar: 'الكهف' },
+        { href: '#36', badge: '36-sura', title: '36. Ya-Sin surasi', sub: '83 oyat · 22–23-juzlar', ar: 'يس' },
+        { href: '#67', badge: '67-sura', title: '67. Al-Mulk surasi', sub: '30 oyat · 29-juz', ar: 'الملك' },
+        { href: '#/juz', badge: 'Boʻlimlar', title: 'Juzlar, Mushaf sahifalari (1–604) va Sajda oyatlari', sub: '30 juz · 604 sahifa · 15 sajda · 7 manzil' },
+      );
+    } else {
+      if (meta) items.push(...parseQuickNav(meta, v, 6));
+      items.push({
+        href: `#/qidiruv?q=${encodeURIComponent(v)}`,
+        badge: 'Qidiruv',
+        title: `«${v}» soʻzini barcha tarjimalardan qidirish`,
+        sub: 'Lotin, kirill va arabcha matnlar boʻyicha toʻliq qidiruv',
+      });
+    }
+    currentItems = items;
+    if (activeIdx >= items.length) activeIdx = 0;
+    listEl.replaceChildren(
+      ...items.map((it, idx) =>
+        h(
+          'button',
+          {
+            type: 'button',
+            class: `qj-item${idx === activeIdx ? ' active' : ''}`,
+            role: 'option',
+            'aria-selected': String(idx === activeIdx),
+            onmouseenter: () => {
+              activeIdx = idx;
+              listEl.querySelectorAll('.qj-item').forEach((el, i) => {
+                el.classList.toggle('active', i === activeIdx);
+                el.setAttribute('aria-selected', String(i === activeIdx));
+              });
+            },
+            onclick: () => go(it.href),
+          },
+          h('span', { class: 'qj-badge' }, it.badge),
+          h('span', { class: 'qj-main' }, h('strong', null, it.title), h('small', null, it.sub)),
+          it.ar ? h('span', { class: 'ar qj-ar', lang: 'ar' }, it.ar) : null,
+        ),
+      ),
+    );
+  }
+
+  input.addEventListener('input', () => {
+    activeIdx = 0;
+    renderItems();
+  });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      activeIdx = (activeIdx + 1) % Math.max(1, currentItems.length);
+      renderItems();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      activeIdx = (activeIdx - 1 + Math.max(1, currentItems.length)) % Math.max(1, currentItems.length);
+      renderItems();
+    } else if (e.key === 'Enter' && currentItems[activeIdx]) {
+      e.preventDefault();
+      go(currentItems[activeIdx].href);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      close();
+    }
+  });
+
+  const modal = h(
+    'div',
+    { class: 'qj-modal card', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Tezkor oʻtish' },
+    h(
+      'div',
+      { class: 'qj-head' },
+      icon(I.search),
+      input,
+      h('button', { class: 'chip small', type: 'button', onclick: close, 'aria-label': 'Yopish' }, 'Esc'),
+    ),
+    listEl,
+    h(
+      'div',
+      { class: 'qj-foot muted' },
+      h('span', null, '↑↓ tanlash · Enter oʻtish · Esc yopish'),
+      h('span', null, 'Misol: ', h('code', null, '2:255'), ', ', h('code', null, 'Yosin'), ', ', h('code', null, '30-juz'), ', ', h('code', null, '50-sahifa')),
+    ),
+  );
+  qjBackdrop = h(
+    'div',
+    {
+      class: 'qj-backdrop',
+      onclick: (e: MouseEvent) => {
+        if (e.target === qjBackdrop) close();
+      },
+    },
+    modal,
+  );
+  document.body.appendChild(qjBackdrop);
+  renderItems();
+  input.focus();
+}
+
+window.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+    e.preventDefault();
+    openQuickJump();
+    return;
+  }
+  if (e.key === 'Escape' && qjBackdrop) {
+    qjBackdrop.remove();
+    qjBackdrop = null;
+    return;
+  }
+  const tag = (e.target as HTMLElement | null)?.tagName;
+  if (e.key === '/' && !e.metaKey && !e.ctrlKey && !e.altKey && tag !== 'INPUT' && tag !== 'TEXTAREA' && tag !== 'SELECT') {
+    e.preventDefault();
+    openQuickJump();
+  }
+});
+
 function brandMark(): SVGSVGElement {
   const NS = 'http://www.w3.org/2000/svg';
   const svg = document.createElementNS(NS, 'svg');
@@ -118,6 +285,19 @@ function renderChrome() {
     { class: 'topnav', 'aria-label': 'Boʻlimlar' },
     NAV.map((n) => h('a', { href: n.href, 'data-name': n.name }, n.label)),
   );
+  const qjBtn = h(
+    'button',
+    {
+      class: 'qj-trigger',
+      type: 'button',
+      'aria-label': 'Tezkor oʻtish (Ctrl+K)',
+      title: 'Tezkor oʻtish (Ctrl+K yoki /)',
+      onclick: () => openQuickJump(),
+    },
+    icon(I.search),
+    h('span', { class: 'qj-lbl' }, 'Oʻtish…'),
+    h('kbd', null, '⌘K'),
+  );
   top.replaceChildren(
     h(
       'div',
@@ -132,6 +312,8 @@ function renderChrome() {
       h(
         'div',
         { class: 'top-actions' },
+        qjBtn,
+        h('a', { class: 'icon-btn', href: '#/juz', 'aria-label': 'Juzlar va sahifalar', title: 'Juzlar va sahifalar' }, icon(I.layers)),
         h('a', { class: 'icon-btn', href: '#/manbalar', 'aria-label': 'Manbalar va litsenziyalar', title: 'Manbalar' }, icon(I.info)),
         themeButton(),
       ),

@@ -1,5 +1,6 @@
 import { h } from '../lib/dom.ts';
-import { getMeta, type SuraMeta } from '../lib/data.ts';
+import { getMeta, juzOf, pageOf, type SuraMeta } from '../lib/data.ts';
+import { matchSura } from '../lib/normalize.ts';
 import { load, save } from '../lib/store.ts';
 import { setTitle, typeLabel, debounce } from '../lib/util.ts';
 import type { Route } from '../main.ts';
@@ -56,6 +57,8 @@ export async function render(root: HTMLElement, _r: Route) {
   setTitle('Suralar xaritasi');
   const meta = await getMeta();
   let mode: Mode = (['mushaf', 'nuzul', 'hajm'] as Mode[]).includes(load<Mode>('mapMode', 'mushaf')) ? load<Mode>('mapMode', 'mushaf') : 'mushaf';
+  let typeHighlight: 'all' | 'makkiy' | 'madaniy' = 'all';
+  let searchQ = '';
 
   const stats = (t: 'makkiy' | 'madaniy') => {
     const list = meta.suras.filter((s) => s.type === t);
@@ -69,6 +72,26 @@ export async function render(root: HTMLElement, _r: Route) {
     nuzul: h('button', { class: 'chip', type: 'button' }, 'Nuzul tartibi'),
     hajm: h('button', { class: 'chip', type: 'button' }, 'Hajm boʻyicha'),
   };
+  const searchInput = h('input', {
+    class: 'field',
+    type: 'search',
+    placeholder: 'Xaritadan surani topish…',
+    'aria-label': 'Xaritadan surani topish',
+    style: { maxWidth: '220px', padding: '7px 12px', fontSize: '14px' },
+  });
+  const mkBtn = h(
+    'button',
+    { class: 'chip small', type: 'button', 'aria-pressed': 'false' },
+    h('span', { class: 'dot makkiy' }),
+    `Makkiy (${mk.n} sura, ${mk.ayas} oyat)`,
+  );
+  const mdBtn = h(
+    'button',
+    { class: 'chip small', type: 'button', 'aria-pressed': 'false' },
+    h('span', { class: 'dot madaniy' }),
+    `Madaniy (${md.n} sura, ${md.ayas} oyat)`,
+  );
+
   const caption = h('p', { class: 'muted', style: { margin: '0', fontSize: '14px' }, 'aria-live': 'polite' });
   const box = h('nav', { class: 'tmap', 'aria-label': 'Suralar xaritasi' });
   const tip = h('div', { class: 'tmap-tip', hidden: true });
@@ -101,10 +124,13 @@ export async function render(root: HTMLElement, _r: Route) {
 
   function showTip(s: SuraMeta, e: PointerEvent) {
     if (e.pointerType === 'touch') return;
+    const jz = juzOf(meta, s.n, 1);
+    const pg = pageOf(meta, s.n, 1);
     tip.replaceChildren(
       h('strong', null, `${s.n}. ${s.tr}`),
       h('span', { class: 'ar', lang: 'ar' }, s.ar),
-      h('span', null, `${s.ayas} oyat · ${typeLabel(s.type)} · nuzul tartibi: ${s.order}`),
+      h('span', null, `${s.ayas} oyat · ${typeLabel(s.type)} · Nuzul: ${s.order}`),
+      h('span', { class: 'muted' }, `${jz}-juz · ${pg}-sahifa · ${s.rukus} ruku`),
     );
     tip.hidden = false;
     moveTip(e);
@@ -115,6 +141,37 @@ export async function render(root: HTMLElement, _r: Route) {
     const y = e.clientY - r.top + 18;
     tip.style.transform = `translate(${x}px, ${y}px)`;
   }
+
+  function updateHighlights() {
+    const hasFilter = typeHighlight !== 'all' || searchQ.trim().length > 0;
+    mkBtn.setAttribute('aria-pressed', String(typeHighlight === 'makkiy'));
+    mdBtn.setAttribute('aria-pressed', String(typeHighlight === 'madaniy'));
+    for (const s of meta.suras) {
+      const t = tiles.get(s.n)!;
+      if (!hasFilter) {
+        t.classList.remove('dimmed', 'spotlight');
+        continue;
+      }
+      const matchType = typeHighlight === 'all' || s.type === typeHighlight;
+      const matchQuery = !searchQ.trim() || matchSura(s, searchQ);
+      const hit = matchType && matchQuery;
+      t.classList.toggle('dimmed', !hit);
+      t.classList.toggle('spotlight', hit && searchQ.trim().length > 0);
+    }
+  }
+
+  mkBtn.addEventListener('click', () => {
+    typeHighlight = typeHighlight === 'makkiy' ? 'all' : 'makkiy';
+    updateHighlights();
+  });
+  mdBtn.addEventListener('click', () => {
+    typeHighlight = typeHighlight === 'madaniy' ? 'all' : 'madaniy';
+    updateHighlights();
+  });
+  searchInput.addEventListener('input', () => {
+    searchQ = searchInput.value;
+    updateHighlights();
+  });
 
   function order(): SuraMeta[] {
     const list = meta.suras.slice();
@@ -184,12 +241,8 @@ export async function render(root: HTMLElement, _r: Route) {
         'div',
         { class: 'map-tools' },
         h('div', { class: 'seg', role: 'group', 'aria-label': 'Tartib' }, btns.mushaf, btns.nuzul, btns.hajm),
-        h(
-          'div',
-          { class: 'legend' },
-          h('span', null, h('span', { class: 'dot makkiy' }), `Makkiy: ${mk.n} sura, ${mk.ayas} oyat`),
-          h('span', null, h('span', { class: 'dot madaniy' }), `Madaniy: ${md.n} sura, ${md.ayas} oyat`),
-        ),
+        searchInput,
+        h('div', { class: 'legend' }, mkBtn, mdBtn),
       ),
       caption,
       h('div', { class: 'tmap-wrap' }, box, tip),
@@ -209,3 +262,4 @@ export async function render(root: HTMLElement, _r: Route) {
   window.addEventListener('resize', onResize);
   return () => window.removeEventListener('resize', onResize);
 }
+

@@ -1,7 +1,8 @@
 import Graph from 'graphology';
 import Sigma from 'sigma';
 import { h, icon, I } from '../lib/dom.ts';
-import { getMeta, fetchJson, refOf, getRootIndex } from '../lib/data.ts';
+import { getMeta, fetchJson, refOf, getRootIndex, getAr } from '../lib/data.ts';
+import { normAr, matchSura } from '../lib/normalize.ts';
 import { setTitle, typeLabel } from '../lib/util.ts';
 import type { Route } from '../main.ts';
 
@@ -12,7 +13,6 @@ interface GraphData {
 }
 
 let graphP: Promise<GraphData> | null = null;
-let arP: Promise<string[]> | null = null;
 let docsP: Promise<string[]> | null = null;
 const once = <T,>(p: Promise<T> | null, f: () => Promise<T>, set: (v: Promise<T> | null) => void): Promise<T> => {
   if (p) return p;
@@ -23,17 +23,9 @@ const once = <T,>(p: Promise<T> | null, f: () => Promise<T>, set: (v: Promise<T>
 };
 const getGraph = () => once(graphP, () => fetchJson<GraphData>('roots/graph.json'), (v) => (graphP = v));
 const getIndex = getRootIndex;
-const getAr = () => once(arP, () => fetchJson<string[]>('ar.json'), (v) => (arP = v));
 const getDocs = () => once(docsP, () => fetchJson<string[]>('search/docs-t.json'), (v) => (docsP = v));
 
 const MARK_ONLY = /^[ۖ-ۭؕ-ؚ۞۩]+$/;
-const normAr = (s: string) =>
-  s
-    .replace(/[ً-ٰٟۖ-ۭـ\s]/g, '')
-    .replace(/[أإآٱ]/g, 'ا')
-    .replace(/ى/g, 'ي')
-    .replace(/ؤ/g, 'و')
-    .replace(/ئ/g, 'ي');
 
 function cssVar(name: string): string {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#888';
@@ -365,10 +357,11 @@ export async function render(root: HTMLElement, r: Route) {
     const sc = suraCounts(ri);
     const list = h('div', { class: 'g-ayas' }, h('div', { class: 'spinner', style: { width: '22px', height: '22px' } }));
     const forms = h('div', { class: 'g-chips' });
+    const ayasTitle = h('h3', null, `Oyatlar (${ayas.length})`);
     panel.replaceChildren(
       h('div', { class: 'g-root-head' }, h('span', { class: 'ar g-root-ar', lang: 'ar' }, idx.ar[ri]), h('span', { class: 'muted' }, `ildiz · ${idx.k[ri]}`)),
       h('p', { class: 'g-stats' }, `${idx.n[ri]} marta · ${ayas.length} oyatda · ${sc.length} surada`),
-      h('h3', null, 'Matndagi shakllari'),
+      h('h3', null, 'Matndagi shakllari (filtrlash uchun bosing)'),
       forms,
       h('h3', null, 'Eng koʻp uchraydigan suralar'),
       h(
@@ -376,30 +369,53 @@ export async function render(root: HTMLElement, r: Route) {
         { class: 'g-chips' },
         sc.slice(0, 8).map(([s, c]) => h('button', { class: 'chip', type: 'button', onclick: () => select(`s${s}`) }, `${s}. ${meta.suras[s - 1].tr}`, h('small', null, String(c)))),
       ),
-      h('h3', null, `Oyatlar (${ayas.length})`),
+      ayasTitle,
       list,
     );
     const [ar, docs] = await Promise.all([getAr(), getDocs().catch(() => null)]);
     if (selected !== `r${ri}`) return;
     // shakllar (Tanzil matnidagi so'zlar, so'zma-so'z)
     const formCount = new Map<string, number>();
+    const ayasByForm = new Map<string, Set<number>>();
     for (const g of ayas) {
       const toks = tokens(ar[g]);
       for (const w of byAya.get(g)!) {
         const t = toks[w - 1]?.t;
-        if (t) formCount.set(t, (formCount.get(t) || 0) + 1);
+        if (t) {
+          formCount.set(t, (formCount.get(t) || 0) + 1);
+          if (!ayasByForm.has(t)) ayasByForm.set(t, new Set());
+          ayasByForm.get(t)!.add(g);
+        }
       }
     }
-    forms.replaceChildren(
-      ...[...formCount.entries()]
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10)
-        .map(([t, c]) => h('span', { class: 'chip ar-chip' }, h('span', { class: 'ar', lang: 'ar' }, t), h('small', null, String(c)))),
-    );
+    let activeForm: string | null = null;
+    const formButtons = [...formCount.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 12)
+      .map(([t, c], idxBtn) =>
+        h(
+          'button',
+          {
+            class: 'chip ar-chip',
+            type: 'button',
+            'aria-pressed': 'false',
+            onclick: () => {
+              activeForm = activeForm === t ? null : t;
+              formButtons.forEach((b, j) => b.setAttribute('aria-pressed', String(j === idxBtn && activeForm === t)));
+              renderAyas();
+            },
+          },
+          h('span', { class: 'ar', lang: 'ar' }, t),
+          h('small', null, String(c)),
+        ),
+      );
+    forms.replaceChildren(...formButtons);
+
+    let filteredAyas = ayas;
     let shown = 0;
     const more = () => {
       const frag = document.createDocumentFragment();
-      for (const g of ayas.slice(shown, shown + 25)) {
+      for (const g of filteredAyas.slice(shown, shown + 25)) {
         const [s, a] = refOf(meta, g);
         const marks = new Set(byAya.get(g)!);
         const p = h('p', { class: 'ar g-aya-ar', lang: 'ar' });
@@ -420,11 +436,17 @@ export async function render(root: HTMLElement, r: Route) {
       shown += 25;
       list.querySelector('.more')?.remove();
       list.appendChild(frag);
-      if (shown < ayas.length)
-        list.appendChild(h('button', { class: 'btn small more', type: 'button', onclick: more }, `Yana koʻrsatish (${ayas.length - shown})`));
+      if (shown < filteredAyas.length)
+        list.appendChild(h('button', { class: 'btn small more', type: 'button', onclick: more }, `Yana koʻrsatish (${filteredAyas.length - shown})`));
     };
-    list.replaceChildren();
-    more();
+    const renderAyas = () => {
+      filteredAyas = activeForm ? ayas.filter((g) => ayasByForm.get(activeForm!)?.has(g)) : ayas;
+      ayasTitle.textContent = activeForm ? `Oyatlar — «${activeForm}» (${filteredAyas.length})` : `Oyatlar (${filteredAyas.length})`;
+      shown = 0;
+      list.replaceChildren();
+      more();
+    };
+    renderAyas();
   }
 
   /** Tanzil oyat matnini so'zlarga ajratadi; to'xtash belgilari so'z raqamiga kirmaydi. */
@@ -436,9 +458,11 @@ export async function render(root: HTMLElement, r: Route) {
   function showSura(n: number) {
     const sm = meta.suras[n - 1];
     const counts: [number, number][] = [];
+    const rootSet = new Set<string>();
     let total = 0;
     graph.forEachEdge(`s${n}`, (_e, attrs, a, b) => {
       const rn = a.startsWith('r') ? a : b;
+      rootSet.add(rn);
       counts.push([Number(rn.slice(1)), attrs.w as number]);
       total += attrs.w as number;
     });
@@ -446,6 +470,21 @@ export async function render(root: HTMLElement, r: Route) {
     const tfidf = counts
       .map(([ri, c]) => [ri, (c / total) * Math.log(114 / graph.degree(`r${ri}`))] as [number, number])
       .sort((x, y) => y[1] - x[1]);
+
+    // Umumiy ildizlar (Jaccard o'xshashligi) bo'yicha yaqin suralar
+    const similar: { sn: number; shared: number; score: number }[] = [];
+    for (const s of meta.suras) {
+      if (s.n === n) continue;
+      const neigh = graph.neighbors(`s${s.n}`);
+      let shared = 0;
+      for (const rn of neigh) if (rootSet.has(rn)) shared++;
+      const union = rootSet.size + neigh.length - shared;
+      if (shared > 0 && union > 0) {
+        similar.push({ sn: s.n, shared, score: shared / union });
+      }
+    }
+    similar.sort((a, b) => b.score - a.score);
+
     panel.replaceChildren(
       h('div', { class: 'g-root-head' }, h('span', { class: 'ar g-root-ar', lang: 'ar' }, sm.ar), h('span', { class: 'muted' }, `${sm.n}. ${sm.tr}`)),
       h('p', { class: 'g-stats' }, h('span', { class: `badge ${sm.type}` }, typeLabel(sm.type)), ` ${sm.ayas} oyat · ${counts.length} xil ildiz · ${total} ta ildizli soʻz`),
@@ -462,6 +501,19 @@ export async function render(root: HTMLElement, r: Route) {
       h('h3', null, 'Shu suraga xos ildizlar'),
       h('p', { class: 'muted', style: { fontSize: '12.5px', margin: '-4px 0 8px' } }, 'Algoritm bilan hisoblangan (TF-IDF): shu surada koʻp, boshqa suralarda kam uchraydigan ildizlar. Bu tafsir yoki mavzu tasnifi emas.'),
       h('div', { class: 'g-chips' }, tfidf.slice(0, 12).map(([ri]) => rootChip(ri))),
+      h('h3', null, 'Umumiy ildizlar boʻyicha yaqin suralar'),
+      h(
+        'div',
+        { class: 'g-chips' },
+        similar.slice(0, 8).map((it) =>
+          h(
+            'button',
+            { class: 'chip', type: 'button', onclick: () => select(`s${it.sn}`), title: `${it.shared} ta umumiy ildiz (${Math.round(it.score * 100)}%)` },
+            `${it.sn}. ${meta.suras[it.sn - 1].tr}`,
+            h('small', null, `${it.shared}`),
+          ),
+        ),
+      ),
     );
   }
 
@@ -470,9 +522,8 @@ export async function render(root: HTMLElement, r: Route) {
     const v = q.trim();
     if (!v) return [];
     const out: { label: Node[]; node: string }[] = [];
-    const lat = v.toLowerCase().replace(/['`ʻʼ‘’\-\s]/g, '');
     for (const s of meta.suras) {
-      if (String(s.n) === v || s.tr.toLowerCase().replace(/['`ʻʼ‘’\-\s]/g, '').includes(lat) || (/[؀-ۿ]/.test(v) && normAr(s.ar).includes(normAr(v))))
+      if (matchSura(s, v))
         out.push({ node: `s${s.n}`, label: [document.createTextNode(`${s.n}. ${s.tr} `), h('span', { class: 'ar', lang: 'ar' }, s.ar)] });
       if (out.length >= 5) break;
     }

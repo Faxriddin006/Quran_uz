@@ -1,18 +1,34 @@
 import { h, icon, I } from '../lib/dom.ts';
-import { getMeta, type SuraMeta } from '../lib/data.ts';
-import { getLastRead, load, save } from '../lib/store.ts';
-import { setTitle, typeLabel } from '../lib/util.ts';
+import { getMeta, juzOf, pageOf, parseQuickNav, type Meta, type SuraMeta } from '../lib/data.ts';
+import { matchSura } from '../lib/normalize.ts';
+import { getLastRead, getHistory, load, save } from '../lib/store.ts';
+import { setTitle, typeLabel, relTime } from '../lib/util.ts';
 import type { Route } from '../main.ts';
 
-type Order = 'mushaf' | 'nuzul';
+type Order = 'mushaf' | 'nuzul' | 'hajm';
 type TypeFilter = 'all' | 'makkiy' | 'madaniy';
+
+const QUICK_REFS: [string, string][] = [
+  ['#1', 'Fotiha'],
+  ['#2:255', 'Oyatul Kursiy (2:255)'],
+  ['#2:285', 'Baqara oxiri (2:285)'],
+  ['#18', 'Kahf (18)'],
+  ['#36', 'Yosin (36)'],
+  ['#55', 'Rahmon (55)'],
+  ['#56', 'Voqea (56)'],
+  ['#67', 'Mulk (67)'],
+  ['#78:1', '30-juz'],
+  ['#/juz?tab=sajda', '15 sajda oyati'],
+];
 
 export async function render(root: HTMLElement, _r: Route) {
   setTitle('');
   const meta = await getMeta();
   const last = getLastRead();
+  const history = getHistory();
 
-  let order: Order = load<Order>('homeOrder', 'mushaf') === 'nuzul' ? 'nuzul' : 'mushaf';
+  const savedOrder = load<Order>('homeOrder', 'mushaf');
+  let order: Order = savedOrder === 'nuzul' || savedOrder === 'hajm' ? savedOrder : 'mushaf';
   let tf: TypeFilter = 'all';
   let q = '';
 
@@ -20,11 +36,47 @@ export async function render(root: HTMLElement, _r: Route) {
     class: 'field',
     type: 'search',
     name: 'q',
-    placeholder: 'Masalan: sabr, jannat, rahmat, 2:255',
-    'aria-label': 'Tarjimalardan qidirish',
+    placeholder: 'Masalan: sabr, rahmat, 2:255, Yosin, 30-juz, 50-sahifa…',
+    'aria-label': 'Tarjimalardan qidirish yoki oyatga oʻtish',
     autocomplete: 'off',
     enterkeyhint: 'search',
   });
+  const suggBox = h('div', { class: 'hero-sugg card', role: 'listbox', hidden: true });
+  input.addEventListener('input', () => {
+    const v = input.value.trim();
+    if (!v) {
+      suggBox.hidden = true;
+      return;
+    }
+    const items = parseQuickNav(meta, v, 5);
+    if (!items.length) {
+      suggBox.hidden = true;
+      return;
+    }
+    suggBox.replaceChildren(
+      ...items.map((it) =>
+        h(
+          'a',
+          { class: 'qj-item', href: it.href, role: 'option' },
+          h('span', { class: 'qj-badge' }, it.badge),
+          h('span', { class: 'qj-main' }, h('strong', null, it.title), h('small', null, it.sub)),
+          it.ar ? h('span', { class: 'ar qj-ar', lang: 'ar' }, it.ar) : null,
+        ),
+      ),
+      h(
+        'a',
+        { class: 'qj-item', href: `#/qidiruv?q=${encodeURIComponent(v)}`, role: 'option' },
+        h('span', { class: 'qj-badge' }, 'Qidiruv'),
+        h('span', { class: 'qj-main' }, h('strong', null, `«${v}» soʻzini barcha tarjimalardan qidirish`), h('small', null, 'Lotin, kirill va arabcha oyatlar ichidan qidirish')),
+      ),
+    );
+    suggBox.hidden = false;
+  });
+  const closeSugg = (e: Event) => {
+    if (!(e.target as HTMLElement | null)?.closest('.hero-search-wrap')) suggBox.hidden = true;
+  };
+  document.addEventListener('click', closeSugg);
+
   const form = h(
     'form',
     {
@@ -33,23 +85,64 @@ export async function render(root: HTMLElement, _r: Route) {
       onsubmit: (e: Event) => {
         e.preventDefault();
         const v = input.value.trim();
-        location.hash = v ? `#/qidiruv?q=${encodeURIComponent(v)}` : '#/qidiruv';
+        if (!v) {
+          location.hash = '#/qidiruv';
+          return;
+        }
+        // Agar aniq sura:oyat, juz yoki sahifa yozilgan bo'lsa to'g'ridan-to'g'ri o'tamiz
+        if (/^\d{1,3}\s*[:.\-\s]\s*\d{1,3}$/.test(v) || /^(?:juz|pora|жуз|пора|sahifa|bet|саҳифа|бет)\s*\d+$/i.test(v) || /^\d+\s*-?\s*(?:juz|pora|жуз|пора|sahifa|bet|саҳифа|бет)$/i.test(v)) {
+          const nav = parseQuickNav(meta, v, 1)[0];
+          if (nav) {
+            location.hash = nav.href;
+            return;
+          }
+        }
+        location.hash = `#/qidiruv?q=${encodeURIComponent(v)}`;
       },
     },
     input,
     h('button', { class: 'btn primary', type: 'submit' }, icon(I.search), h('span', null, 'Qidirish')),
   );
 
+  const quickChips = h(
+    'div',
+    { class: 'hero-chips', 'aria-label': 'Tezkor havolalar' },
+    QUICK_REFS.map(([href, label]) => h('a', { class: 'chip small', href }, label)),
+  );
+
   const quick = h(
     'div',
     { class: 'quick' },
     last
-      ? quickCard(`#${last.s}:${last.a}`, I.bookmark, 'Davom ettirish', `${meta.suras[last.s - 1].tr}, ${last.s}:${last.a}`)
+      ? quickCard(
+          `#${last.s}:${last.a}`,
+          I.bookmark,
+          'Davom ettirish',
+          `${meta.suras[last.s - 1].tr}, ${last.s}:${last.a} · ${Math.round((last.a / meta.suras[last.s - 1].ayas) * 100)}% (${relTime(last.t)})`,
+        )
       : null,
     quickCard('#/xarita', I.map, 'Suralar xaritasi', '114 sura: hajmi, Makkiy/Madaniy, nuzul tartibi'),
     quickCard('#/ildizlar', I.graph, 'Ildizlar grafi', 'Arabcha ildizlar orqali suralar aloqasi'),
-    quickCard('#/juz', I.layers, 'Juz va hizblar', '30 juz, 60 hizb boʻyicha oʻqish'),
+    quickCard('#/juz', I.layers, 'Juz, sahifa va sajdalar', '30 juz, 604 sahifa, 15 sajda oyati'),
   );
+
+  const histRow =
+    history.length > 1
+      ? h(
+          'div',
+          { class: 'hist-strip' },
+          h('span', { class: 'muted hist-lbl' }, icon(I.clock), 'Oxirgi oʻqilgan:'),
+          ...history.slice(0, 5).map((item) => {
+            const sm = meta.suras[item.s - 1];
+            return h(
+              'a',
+              { class: 'chip small', href: `#${item.s}:${item.a}`, title: `${sm.tr} ${item.s}:${item.a} (${relTime(item.t)})` },
+              `${sm.n}. ${sm.tr} `,
+              h('small', null, `${item.s}:${item.a}`),
+            );
+          }),
+        )
+      : null;
 
   const hero = h(
     'section',
@@ -64,22 +157,25 @@ export async function render(root: HTMLElement, _r: Route) {
         { class: 'lead' },
         'Usmoniy rasmdagi arabcha matn (Tanzil) va oʻzbekcha tarjimalar — Muhammad Sodiq Muhammad Yusuf va Alouddin Mansur. Barcha matnlar nashr qilingan manbalardan soʻzma-soʻz olingan.',
       ),
-      form,
+      h('div', { class: 'hero-search-wrap' }, form, suggBox),
+      quickChips,
       quick,
+      histRow,
     ),
   );
 
   const filter = h('input', {
     class: 'field',
     type: 'search',
-    placeholder: 'Sura nomi yoki raqami…',
+    placeholder: 'Sura nomi (Fotiha, Yosin, Каҳф) yoki raqami…',
     'aria-label': 'Suralarni saralash',
     autocomplete: 'off',
   });
   const grid = h('div', { class: 'sura-grid' });
-  const orderBtns = {
+  const orderBtns: Record<Order, HTMLButtonElement> = {
     mushaf: h('button', { class: 'chip', type: 'button' }, 'Mushaf tartibi'),
     nuzul: h('button', { class: 'chip', type: 'button' }, 'Nuzul tartibi'),
+    hajm: h('button', { class: 'chip', type: 'button' }, 'Oyatlar soni'),
   };
   const typeBtns = {
     all: h('button', { class: 'chip', type: 'button' }, 'Barchasi'),
@@ -89,28 +185,29 @@ export async function render(root: HTMLElement, _r: Route) {
   const count = h('span', { class: 'muted', style: { fontSize: '14px', marginLeft: 'auto' } });
 
   const cards = new Map<number, HTMLAnchorElement>();
-  for (const s of meta.suras) cards.set(s.n, suraCard(s));
+  for (const s of meta.suras) cards.set(s.n, suraCard(s, meta));
 
-  function norm(s: string) {
-    return s.toLowerCase().replace(/['`ʻʼ‘’\-\s]/g, '');
-  }
   function paint() {
     for (const [k, b] of Object.entries(orderBtns)) b.setAttribute('aria-pressed', String(k === order));
     for (const [k, b] of Object.entries(typeBtns)) b.setAttribute('aria-pressed', String(k === tf));
-    const nq = norm(q);
     const list = meta.suras
       .filter((s) => tf === 'all' || s.type === tf)
-      .filter((s) => !nq || String(s.n) === nq || norm(s.tr).includes(nq) || norm(s.tz).includes(nq) || s.ar.includes(q.trim()))
-      .sort((a, b) => (order === 'mushaf' ? a.n - b.n : a.order - b.order));
+      .filter((s) => matchSura(s, q))
+      .sort((a, b) => (order === 'mushaf' ? a.n - b.n : order === 'nuzul' ? a.order - b.order : b.ayas - a.ayas || a.n - b.n));
     grid.replaceChildren(...list.map((s) => cards.get(s.n)!));
     for (const s of list) {
       const ord = cards.get(s.n)!.querySelector('.ord');
-      if (ord) ord.textContent = order === 'nuzul' ? `Nuzul: ${s.order}` : '';
+      if (ord) ord.textContent = order === 'nuzul' ? `· Nuzul: ${s.order}` : `· ${juzOf(meta, s.n, 1)}-juz, ${pageOf(meta, s.n, 1)}-bet`;
     }
     count.textContent = `${list.length} ta sura`;
   }
-  orderBtns.mushaf.onclick = () => ((order = 'mushaf'), save('homeOrder', order), paint());
-  orderBtns.nuzul.onclick = () => ((order = 'nuzul'), save('homeOrder', order), paint());
+  for (const k of Object.keys(orderBtns) as Order[]) {
+    orderBtns[k].onclick = () => {
+      order = k;
+      save('homeOrder', order);
+      paint();
+    };
+  }
   for (const k of Object.keys(typeBtns) as TypeFilter[]) typeBtns[k].onclick = () => ((tf = k), paint());
   filter.addEventListener('input', () => ((q = filter.value), paint()));
 
@@ -120,19 +217,20 @@ export async function render(root: HTMLElement, _r: Route) {
       'section',
       { class: 'wrap', 'aria-labelledby': 'suralar-h' },
       h('h2', { id: 'suralar-h', class: 'sr-only' }, 'Suralar roʻyxati'),
-      h('div', { class: 'list-tools' }, filter, orderBtns.mushaf, orderBtns.nuzul, typeBtns.all, typeBtns.makkiy, typeBtns.madaniy, count),
+      h('div', { class: 'list-tools' }, filter, orderBtns.mushaf, orderBtns.nuzul, orderBtns.hajm, typeBtns.all, typeBtns.makkiy, typeBtns.madaniy, count),
       grid,
       footerNote(),
     ),
   );
   paint();
+  return () => document.removeEventListener('click', closeSugg);
 }
 
 function quickCard(href: string, ic: string, title: string, sub: string) {
   return h('a', { class: 'card', href }, h('span', { class: 'qi' }, icon(ic)), h('span', null, h('strong', null, title), h('span', { class: 'sub' }, sub)));
 }
 
-function suraCard(s: SuraMeta): HTMLAnchorElement {
+function suraCard(s: SuraMeta, meta: Meta): HTMLAnchorElement {
   return h(
     'a',
     { class: 'sura-card', href: `#${s.n}`, 'aria-label': `${s.n}. ${s.tr}, ${s.ayas} oyat, ${typeLabel(s.type)}` },
@@ -145,8 +243,8 @@ function suraCard(s: SuraMeta): HTMLAnchorElement {
         'div',
         { class: 'info' },
         h('span', { class: `dot ${s.type}`, title: typeLabel(s.type) }),
-        `${typeLabel(s.type)} · ${s.ayas} oyat`,
-        h('span', { class: 'ord' }),
+        `${typeLabel(s.type)} · ${s.ayas} oyat `,
+        h('span', { class: 'ord' }, `· ${juzOf(meta, s.n, 1)}-juz, ${pageOf(meta, s.n, 1)}-bet`),
       ),
     ),
     h('span', { class: 'ar', lang: 'ar' }, s.ar),
@@ -161,3 +259,4 @@ export function footerNote() {
     h('a', { href: '#/manbalar' }, 'Manbalar va litsenziyalar'),
   );
 }
+

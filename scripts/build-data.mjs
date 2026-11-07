@@ -198,7 +198,7 @@ for (let i = 0; i < 114; i++) {
     tr.mansur_cyr.push(man.translation);
     fn.mansur_cyr.push(man.footnotes || '');
     searchDocs.t.push(stripFootnoteMarks(lat));
-    searchDocs.m.push(man.translation);
+    searchDocs.m.push(stripFootnoteMarks(man.translation));
   }
   const ch = qcomChapters[i];
   suraMeta.push({

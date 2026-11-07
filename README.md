@@ -14,13 +14,14 @@ Arabcha Usmoniy matn va oʻzbekcha tarjimalar bilan Qurʼon oʻqish uchun tezkor
 
 | Boʻlim | Nima qiladi |
 |---|---|
-| **Oʻqish** (`#2`, `#2:255`) | Tanzil Usmoniy arabcha matni (Amiri Quran shrifti, RTL) va tarjimalar yonma-yon (telefonda ketma-ket). Oyat havolasi, nusxa olish, ulashish, izohlar, tafsir, oyatma-oyat audio (5 qori), har bir soʻzning ildizi |
-| **Qidiruv** | Oldindan qurilgan MiniSearch indeksi. Lotin va kirill yozuvlari bir xil qidiriladi (`rahmat` = `раҳмат`), soʻz boshi va kichik xatolar hisobga olinadi; `2:255` kabi havolalar ham ishlaydi |
-| **Suralar xaritasi** | 114 sura — yuzasi oyatlar soniga mutanosib toʻrtburchaklar; Makkiy/Madaniy ranglari; mushaf, nuzul va hajm tartiblari orasida animatsiyali oʻtish |
-| **Ildizlar grafi** | Suralar va 1642 arabcha ildiz (Quranic Arabic Corpus) grafi, WebGL (Sigma.js). Ildizni bosish — barcha oyatlar (soʻz belgilangan holda); oyatni bosish — oʻqish sahifasi. Qidiruv, sura boʻyicha filtr, zoom |
-| **Juz va hizblar** | 30 juz, 60 hizb, 240 chorak (Tanzil metamaʼlumotlari) |
-| **Saqlanganlar** | Saqlangan oyatlar va oxirgi oʻqilgan joy (faqat shu brauzerda, `localStorage`) |
-| **Manbalar** | Har bir manba, litsenziya matni, fayl xeshlari |
+| **Oʻqish** (`#2`, `#2:255`) | Tanzil Usmoniy arabcha matni (Amiri Quran shrifti, RTL) va tarjimalar 3 koʻrinishda: **Yonma-yon**, **Ketma-ket**, **Mushaf sahifasi** (604 Madina mushafi sahifalari). Juz/Hizb/Sahifa ajratgichlari, sajda oyati belgisi (`۩`), sura ichidan filtrlash, izohlar, tafsir, har bir soʻzning ildizi, va pastki **Audio mini-pleyer** (5 qori, tezlik `0.85×–1.25×`, takrorlash `1×/2×/3×/∞`, MediaSession) |
+| **Tezkor oʻtish** (`Ctrl+K`, `/`) | Istalgan sahifadan tabiiy tilda tezkor oʻtish: `2:255`, `Baqara 255`, `Yosin`, `30-juz`, `50-sahifa`, `sajda` |
+| **Qidiruv** (`#/qidiruv`) | Oldindan qurilgan MiniSearch indeksi + arabcha matn boʻyicha qidiruv (`normAr`). Lotin, kirill (`rahmat` = `раҳмат`), fonetik oʻzbekcha sura nomlari (`Fotiha`, `Yosin`, `Ixlos`, `Voqea`) va sura/Makkiy-Madaniy filtrlari |
+| **Suralar xaritasi** (`#/xarita`) | 114 sura — yuzasi oyatlar soniga mutanosib treemap; Makkiy/Madaniy filtri, sura qidiruvi va mushaf/nuzul/hajm tartiblari orasida animatsiyali oʻtish |
+| **Ildizlar grafi** (`#/ildizlar`) | Suralar va 1642 arabcha ildiz (Quranic Arabic Corpus) grafi (Sigma.js). Soʻz shakllari boʻyicha oyatlarni filtrlash, umumiy ildizlar boʻyicha yaqin suralar (Jaccard), TF-IDF xos ildizlar |
+| **Juz va sahifalar** (`#/juz`, `#/sahifa`) | 30 juz va 60 hizb (240 chorak), **604 Mushaf sahifasi**, **15 sajda oyati** va **7 manzil** (Tanzil metamaʼlumotlari) |
+| **Saqlanganlar** (`#/xatchop`) | Saqlangan oyatlar, har bir oyat uchun shaxsiy qayd (`note`), oʻqish tarixi (foiz koʻrsatkichi bilan) hamda JSON eksport/import (`localStorage`) |
+| **Manbalar** (`#/manbalar`) | Har bir manba, litsenziya matni, fayl xeshlari |
 
 Qorongʻi/yorugʻ mavzu, WCAG AA kontrast, Lighthouse (bosh sahifa): Performance 100, Accessibility 100, Best Practices 100, SEO 100.
 

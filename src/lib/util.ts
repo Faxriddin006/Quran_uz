@@ -54,3 +54,16 @@ export function debounce<A extends unknown[]>(fn: (...a: A) => void, ms: number)
 export function setTitle(t: string): void {
   document.title = t ? `${t} — Qur'oni Karim` : "Qur'oni Karim — arabcha matn va o'zbekcha tarjimalar";
 }
+
+export function relTime(ts: number): string {
+  const sec = Math.max(0, Math.floor((Date.now() - ts) / 1000));
+  if (sec < 60) return 'hozirgina';
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min} daqiqa oldin`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr} soat oldin`;
+  const days = Math.floor(hr / 24);
+  if (days < 30) return `${days} kun oldin`;
+  return new Date(ts).toISOString().slice(0, 10);
+}
+

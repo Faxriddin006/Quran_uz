@@ -13,7 +13,7 @@ const CYR: Record<string, string> = {
 };
 const CYR_VOWELS = 'аеёиоуэюяў';
 
-function cyrToLat(word: string): string {
+export function cyrToLat(word: string): string {
   let out = '';
   for (let i = 0; i < word.length; i++) {
     const ch = word[i];
@@ -43,12 +43,52 @@ export function normTerm(term: string): string | null {
   return t;
 }
 
+/** Arabcha qidiruv uchun harakat va belgilarni olib tashlash (faqat solishtirish uchun) */
+export function normAr(s: string): string {
+  return s
+    .replace(/[ً-ٰٟۖ-ۭـ\s]/g, '')
+    .replace(/[أإآٱ]/g, 'ا')
+    .replace(/ى/g, 'ي')
+    .replace(/ؤ/g, 'و')
+    .replace(/ئ/g, 'ي')
+    .replace(/ة/g, 'ه');
+}
+
+/** Sura nomlarini lotin/kirill/fonetik qidirish uchun normallashtirish */
+export function normSura(s: string): string {
+  let t = s.toLowerCase();
+  if (/[Ѐ-ӿ]/.test(t)) t = cyrToLat(t);
+  return t
+    .replace(/['`ʻʼ‘’\-_\s.,]/g, '')
+    .replace(/kh/g, 'x')
+    .replace(/gh/g, 'g')
+    .replace(/th/g, 's')
+    .replace(/dh/g, 'z')
+    .replace(/w/g, 'v')
+    .replace(/[ou]/g, 'a')
+    .replace(/[ye]/g, 'i')
+    .replace(/i(?=[la])/g, 'a')
+    .replace(/(.)\1+/g, '$1')
+    .replace(/(?<=.{4})[ht]$/g, '');
+}
+
+export function matchSura(s: { n: number; tr: string; tz: string; ar: string }, query: string): boolean {
+  const raw = query.trim();
+  if (!raw) return true;
+  if (String(s.n) === raw) return true;
+  if (/[؀-ۿ]/.test(raw)) return normAr(s.ar).includes(normAr(raw));
+  const nq = normSura(raw);
+  if (!nq) return true;
+  return normSura(s.tr).includes(nq) || normSura(s.tz).includes(nq);
+}
+
 // quran.com matnidagi izoh belgilari: <sup foot_note="123">1</sup>
 export const FOOTNOTE_RE = /<sup foot_note="(\d+)">(\d+)<\/sup>/g;
 
-export function stripFootnoteMarks(text: string): string {
-  return text.replace(FOOTNOTE_RE, '');
-}
-
 // QuranEnc matnidagi izoh belgilari: [1]
 export const QENC_FN_RE = /\[(\d+)\]/g;
+
+export function stripFootnoteMarks(text: string): string {
+  return text.replace(FOOTNOTE_RE, '').replace(QENC_FN_RE, '').replace(/\s{2,}/g, ' ').trim();
+}
+
