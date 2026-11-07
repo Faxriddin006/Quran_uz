@@ -2074,3 +2074,42 @@ mark {
   z-index: 2;
 }
 
+/* ---------- Kirillcha o'qilishi (transliteratsiya / talaffuz) ---------- */
+.btn.small[aria-pressed='true'] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.basmala-wrap {
+  text-align: center;
+  margin: 18px 0 8px;
+}
+.basmala-wrap .basmala {
+  margin: 0;
+}
+.basmala-tl {
+  margin: 2px 0 0;
+  font-size: calc(var(--tr-size) * 0.96);
+  color: var(--gold);
+  font-weight: 500;
+  letter-spacing: 0.15px;
+}
+.translit-box {
+  padding: 9px 13px;
+  border-left: 3px solid var(--gold);
+  background: color-mix(in srgb, var(--gold) 7%, var(--surface-2));
+  border-radius: 0 10px 10px 0;
+}
+.translit-text {
+  margin: 0;
+  font-size: var(--tr-size);
+  line-height: 1.65;
+  color: var(--ink);
+  font-weight: 500;
+}
+.translit-box .src {
+  color: var(--gold);
+  font-weight: 600;
+}
+
+

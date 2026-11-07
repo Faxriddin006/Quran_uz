@@ -26,6 +26,7 @@ export interface Settings {
   trSize: number;
   editions: string[];
   showAr: boolean;
+  showTranslit: boolean;
   reciter: string;
   layout: ReaderLayout;
   audioSpeed: number;
@@ -39,6 +40,7 @@ const DEFAULTS: Settings = {
   trSize: 17,
   editions: ['sodiq_lat'],
   showAr: true,
+  showTranslit: true,
   reciter: 'Alafasy_128kbps',
   layout: 'split',
   audioSpeed: 1,
@@ -51,6 +53,7 @@ if (!Array.isArray(settings.editions)) settings.editions = DEFAULTS.editions.sli
 if (!['split', 'stack', 'mushaf'].includes(settings.layout)) settings.layout = 'split';
 if (![0.85, 1, 1.25].includes(settings.audioSpeed)) settings.audioSpeed = 1;
 if (![0, 1, 2, 3].includes(settings.audioRepeat)) settings.audioRepeat = 1;
+if (typeof settings.showTranslit !== 'boolean') settings.showTranslit = true;
 
 export function saveSettings(): void {
   save('settings', settings);

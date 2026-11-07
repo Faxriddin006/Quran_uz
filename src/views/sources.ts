@@ -107,6 +107,17 @@ export async function render(root: HTMLElement, _r: Route) {
         ['Manba', ext('https://api.quran.com/api/v4/chapters', 'Quran.com API v4 — chapters (name_simple)')],
         ['Izoh', 'Oʻzbekcha nomlar uchun ochiq litsenziyali maʼlumotlar toʻplami topilmadi, shuning uchun nomlar oʻzimiz tomonidan tarjima qilinmadi.'],
       ]),
+      srcCard('Arabcha matnning kirillcha oʻqilishi (талаффуз / транслитерация)', [
+        ['Manba', 'Tanzil Quran Text — Usmoniy (quran-uthmani.xml)'],
+        [
+          'Usul',
+          'Tanzil Usmoniy XML dagi harflar, harakatlar (fatha, kasra, damma, sukun, shadda, tanwin), hamzatul-vasl (ٱ), shamsiy/qamariy harflar, idgʻom, iqlob (ۢ/ۭ) va vaqf qoidalaridan deterministik jadval asosida avtomatik hosil qilingan (src/lib/translit.ts).',
+        ],
+        [
+          'Muhim eslatma',
+          'Kirill yoki lotin harflari arab tovushlari va tajvid qoidalarini toʻliq ifodalay olmaydi. Shu sababli bu qator faqat oʻrganuvchilar uchun yordamchi vosita boʻlib, uni asl arabcha matn va qorilar audiosi bilan birga kuzatish tavsiya etiladi.',
+        ],
+      ]),
 
       h('h2', null, 'Tarjimalar'),
       srcCard(

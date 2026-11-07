@@ -42,7 +42,9 @@ export interface Meta {
 export interface SuraData {
   n: number;
   b: string | null;
+  btl: string | null;
   ar: string[];
+  tl: string[];
   tr: Record<string, string[]>;
   fn: { sodiq_lat: Record<string, string>; mansur_cyr: string[]; sodiq_cyr: string[] };
 }

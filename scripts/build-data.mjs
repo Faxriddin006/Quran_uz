@@ -6,6 +6,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import MiniSearch from 'minisearch';
 import { tokenize, normTerm, stripFootnoteMarks } from '../src/lib/normalize.ts';
+import { translitCyr } from '../src/lib/translit.ts';
 import { buildRoots } from './build-roots.mjs';
 
 const ROOT = path.resolve(import.meta.dirname, '..');
@@ -212,7 +213,9 @@ for (let i = 0; i < 114; i++) {
     rukus: row[3],
     type: row[7] === 'Meccan' ? 'makkiy' : 'madaniy',
   });
-  writeJson(`s/${s.n}.json`, { n: s.n, b: s.bismillah, ar: s.ayas, tr, fn });
+  const tl = s.ayas.map((aya) => translitCyr(aya));
+  const btl = s.bismillah ? translitCyr(s.bismillah) : null;
+  writeJson(`s/${s.n}.json`, { n: s.n, b: s.bismillah, btl, ar: s.ayas, tl, tr, fn });
   for (const t of TAFSIRS) writeJson(`tafsir/${t.id}/${s.n}.json`, taf[t.id]);
 }
 check(g === 6236, 'jami oyatlar');

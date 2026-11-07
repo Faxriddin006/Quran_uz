@@ -148,6 +148,18 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
     h('span', { class: 'lbl' }, 'Tinglash'),
   );
 
+  const tlToolbarBtn = h(
+    'button',
+    {
+      class: 'btn small',
+      type: 'button',
+      'aria-pressed': String(settings.showTranslit),
+      title: 'Arabcha matnning kirillcha oʻqilishini (talaffuzini) koʻrsatish / yashirish',
+      onclick: () => toggleTranslit(),
+    },
+    h('span', null, 'Ўқилиши'),
+  );
+
   const panelBtn = h(
     'button',
     {
@@ -167,7 +179,7 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
   const toolbar = h(
     'div',
     { class: 'toolbar' },
-    h('div', { class: 'wrap' }, prevA, sel, nextA, h('span', { class: 'sep' }), jumpForm, filterInput, playSuraBtn, panelBtn),
+    h('div', { class: 'wrap' }, prevA, sel, nextA, h('span', { class: 'sep' }), jumpForm, filterInput, tlToolbarBtn, playSuraBtn, panelBtn),
     h('div', { class: 'reading-progress', 'aria-hidden': 'true' }, progressFill),
   );
 
@@ -217,7 +229,8 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
             'aria-pressed': String(settings.editions.includes(e.id)),
             onclick: () => {
               const on = settings.editions.includes(e.id);
-              if (on && settings.editions.length === 1 && !settings.showAr) return toast('Kamida bitta matn koʻrinib turishi kerak');
+              if (on && settings.editions.length === 1 && !settings.showAr && !settings.showTranslit)
+                return toast('Kamida bitta matn koʻrinib turishi kerak');
               settings.editions = on ? settings.editions.filter((x) => x !== e.id) : [...settings.editions, e.id];
               saveSettings();
               paintEdChips();
@@ -232,7 +245,23 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
   paintEdChips();
 
   const arBtn = h('button', { class: 'chip', type: 'button', 'aria-pressed': String(settings.showAr) }, 'Arabcha matnni koʻrsatish');
+  const tlBtn = h(
+    'button',
+    { class: 'chip', type: 'button', 'aria-pressed': String(settings.showTranslit), onclick: () => toggleTranslit() },
+    'Arabcha kirillcha oʻqilishi (талаффуз)',
+  );
   const divBtn = h('button', { class: 'chip', type: 'button', 'aria-pressed': String(settings.showDividers) }, 'Juz, hizb va sahifa chegaralari');
+
+  function toggleTranslit() {
+    if (settings.showTranslit && !settings.showAr && settings.editions.length === 0) {
+      return toast('Kamida bitta matn koʻrinib turishi kerak');
+    }
+    settings.showTranslit = !settings.showTranslit;
+    tlBtn.setAttribute('aria-pressed', String(settings.showTranslit));
+    tlToolbarBtn.setAttribute('aria-pressed', String(settings.showTranslit));
+    saveSettings();
+    renderAyahs();
+  }
 
   const range = (label: string, min: number, max: number, get: () => number, set: (v: number) => void) => {
     const out = h('span', null, String(get()));
@@ -266,12 +295,12 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
       { class: 'card panel' },
       h('h3', null, 'Koʻrinish'),
       h('div', { class: 'row' }, layoutGroup, divBtn),
-      h('h3', null, 'Tarjimalar'),
+      h('h3', null, 'Tarjimalar va oʻqilishi'),
       edChips,
-      h('div', { class: 'row' }, arBtn),
+      h('div', { class: 'row' }, tlBtn, arBtn),
       h('h3', null, 'Matn oʻlchami'),
       h('div', { class: 'row' }, range('Arabcha matn', 20, 52, () => settings.arSize, (v) => (settings.arSize = v))),
-      h('div', { class: 'row' }, range('Tarjima', 13, 26, () => settings.trSize, (v) => (settings.trSize = v))),
+      h('div', { class: 'row' }, range('Tarjima va oʻqilishi', 13, 26, () => settings.trSize, (v) => (settings.trSize = v))),
       h('h3', null, 'Qiroat (audio)'),
       h('div', { class: 'row' }, reciterSel),
       h('p', { class: 'muted', style: { fontSize: '13px', margin: 0 } }, 'Audio everyayah.com saytidan oyatma-oyat yuklanadi. ', h('a', { href: '#/manbalar' }, 'Manbalar')),
@@ -282,7 +311,7 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
     panelBtn.setAttribute('aria-expanded', String(!panel.hidden));
   });
   arBtn.addEventListener('click', () => {
-    if (settings.showAr && settings.editions.length === 0) return toast('Kamida bitta matn koʻrinib turishi kerak');
+    if (settings.showAr && settings.editions.length === 0 && !settings.showTranslit) return toast('Kamida bitta matn koʻrinib turishi kerak');
     settings.showAr = !settings.showAr;
     arBtn.setAttribute('aria-pressed', String(settings.showAr));
     saveSettings();
@@ -297,7 +326,25 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
 
   // ---------- Oyatlar ----------
   const list = h('div', { class: 'wrap ayahs' });
-  const basmala = data.b ? h('p', { class: 'ar basmala', lang: 'ar' }, data.b) : null;
+  const basmala = data.b
+    ? h(
+        'div',
+        { class: 'basmala-wrap' },
+        h('p', { class: 'ar basmala', lang: 'ar' }, data.b),
+        data.btl ? h('p', { class: 'basmala-tl', lang: 'uz-Cyrl', hidden: !settings.showTranslit }, data.btl) : null,
+      )
+    : null;
+
+  function tlBlock(i: number): HTMLElement | null {
+    const t = data.tl?.[i];
+    if (!t) return null;
+    return h(
+      'div',
+      { class: 'tr translit-box', 'data-ed': 'tl_cyr' },
+      h('p', { class: 'translit-text', lang: 'uz-Cyrl', dir: 'ltr' }, t),
+      h('span', { class: 'src' }, 'Кириллча ўқилиши (талаффуз)'),
+    );
+  }
 
   function trBlock(ed: Edition, i: number): HTMLElement {
     const text = data.tr[ed.id][i];
@@ -333,7 +380,7 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
       }
       p.append(text.slice(last));
     }
-    const multi = settings.editions.length > 1;
+    const multi = settings.editions.length > 1 || settings.showTranslit;
     return h(
       'div',
       { class: `tr${multi ? ' tr-multi' : ''}`, 'data-ed': ed.id },
@@ -358,6 +405,7 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
   function ayahEl(i: number): HTMLElement {
     const a = i + 1;
     const eds = meta.editions.filter((e) => settings.editions.includes(e.id));
+    const hasLeftCol = eds.length > 0 || settings.showTranslit;
     const bm = isBookmarked(sm.n, a);
     const sajda = sajdaOf(meta, sm.n, a);
     const jz = juzOf(meta, sm.n, a);
@@ -367,7 +415,7 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
     const tafBtn = h('button', { class: 'icon-btn', type: 'button', 'aria-expanded': 'false', 'aria-label': 'Tafsir', title: 'Tafsir' }, icon(I.note));
     const rootBtn = h('button', { class: 'icon-btn', type: 'button', 'aria-expanded': 'false', 'aria-label': 'Soʻzlar va ildizlar', title: 'Soʻzlar va ildizlar' }, icon(I.graph));
     const extra = h('div', { class: 'extra' });
-    const twoCol = settings.layout === 'split' && settings.showAr && eds.length > 0;
+    const twoCol = settings.layout === 'split' && settings.showAr && hasLeftCol;
     const stacked = settings.layout === 'stack';
     const el = h(
       'article',
@@ -395,7 +443,14 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
         ),
       ),
       settings.showAr ? h('p', { class: 'ar ar-text', lang: 'ar' }, data.ar[i], ' ', h('span', { class: 'ayah-num', 'aria-hidden': 'true' }, arNum(a))) : null,
-      eds.length ? h('div', { class: 'tr-list' }, eds.map((e) => trBlock(e, i))) : null,
+      hasLeftCol
+        ? h(
+            'div',
+            { class: 'tr-list' },
+            settings.showTranslit ? tlBlock(i) : null,
+            eds.map((e) => trBlock(e, i)),
+          )
+        : null,
       extra,
     );
     playBtn.addEventListener('click', () => (playing === a && !audio.paused ? stopAudio() : playAyah(a)));
@@ -534,9 +589,10 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
     if (/[؀-ۿ]/.test(suraFilter)) return normAr(data.ar[i]).includes(normAr(suraFilter));
     const qTerms = tokenize(suraFilter).map(normTerm).filter(Boolean) as string[];
     if (!qTerms.length) return true;
-    const hay = Object.values(data.tr)
-      .map((arr) => stripFootnoteMarks(arr[i]))
-      .join(' ');
+    const hay = [
+      ...Object.values(data.tr).map((arr) => stripFootnoteMarks(arr[i])),
+      data.tl?.[i] ?? '',
+    ].join(' ');
     const docTerms = tokenize(hay).map(normTerm).filter(Boolean) as string[];
     return qTerms.every((qt) => docTerms.some((dt) => dt.includes(qt)));
   }
@@ -616,6 +672,8 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
   }
 
   function renderAyahs() {
+    const btlEl = basmala?.querySelector<HTMLElement>('.basmala-tl');
+    if (btlEl) btlEl.hidden = !settings.showTranslit;
     if (settings.layout === 'mushaf') {
       renderMushafMode();
       observe();
@@ -649,7 +707,12 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
   function copyAyah(a: number) {
     const i = a - 1;
     const eds = meta.editions.filter((e) => settings.editions.includes(e.id));
-    const parts = [data.ar[i], ...eds.map((e) => `${plainTr(e.id, i)}\n— ${e.title} tarjimasi`), `Qurʼon, ${sm.tr} surasi, ${sm.n}:${a}\n${siteUrl(`#${sm.n}:${a}`)}`];
+    const parts = [
+      data.ar[i],
+      ...(settings.showTranslit && data.tl?.[i] ? [`${data.tl[i]}\n— Кириллча ўқилиши`] : []),
+      ...eds.map((e) => `${plainTr(e.id, i)}\n— ${e.title} tarjimasi`),
+      `Qurʼon, ${sm.tr} surasi, ${sm.n}:${a}\n${siteUrl(`#${sm.n}:${a}`)}`,
+    ];
     copyText(parts.join('\n\n')).then((ok) => toast(ok ? 'Nusxa olindi' : 'Nusxa olib boʻlmadi'));
   }
   async function shareAyah(a: number) {
