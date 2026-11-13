@@ -398,6 +398,30 @@ async function route() {
   }
 }
 
+// Oflayn ishlash: service worker (faqat qurilgan saytda)
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+    // Yangi versiyadan keyin: hali keshlanmagan bo'laklarni bo'sh vaqtda keshlash, eskilarini tozalash
+    const warm = async () => {
+      try {
+        if (!navigator.serviceWorker.controller) return;
+        const list: string[] = await fetch('asset-list.json', { cache: 'no-store' }).then((r) => r.json());
+        const cache = await caches.open('quz-static-v3');
+        const want = new Set(list.map((f) => new URL(f, location.href).href));
+        for (const req of await cache.keys()) if (req.url.includes('/assets/') && !want.has(req.url)) await cache.delete(req);
+        for (const url of want) if (!(await cache.match(url, { ignoreVary: true }))) await fetch(url).catch(() => {});
+        const { DATA_V } = await import('./lib/data.ts');
+        await fetch(`data/meta.json?v=${DATA_V}`).catch(() => {});
+      } catch {
+        /* oflayn yoki kesh mavjud emas */
+      }
+    };
+    setTimeout(warm, 3000);
+    navigator.serviceWorker.addEventListener('controllerchange', () => setTimeout(warm, 1000));
+  });
+}
+
 applyTheme(settings.theme);
 renderChrome();
 window.addEventListener('hashchange', route);

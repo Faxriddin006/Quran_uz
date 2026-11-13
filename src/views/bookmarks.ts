@@ -1,4 +1,5 @@
 import { h, icon, I } from '../lib/dom.ts';
+import { khatmSection, offlineSection } from '../lib/me-sections.ts';
 import { getMeta, getSura, juzOf, pageOf } from '../lib/data.ts';
 import {
   getBookmarks,
@@ -232,9 +233,13 @@ export async function render(root: HTMLElement, _r: Route) {
         h('h1', null, 'Saqlanganlar va oʻqish tarixi'),
         h('p', null, 'Saqlangan oyatlar, shaxsiy eslatmalar va oxirgi oʻqilgan suralar shu qurilmadagi brauzerda saqlanadi (serverga yuborilmaydi).'),
       ),
+      khatmSection(meta),
+      h('div', { style: { height: '18px' } }),
       histBox,
       toolsBox,
       list,
+      offlineSection(meta),
+      h('div', { style: { height: '50px' } }),
     ),
   );
   paintHistory();

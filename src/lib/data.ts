@@ -50,7 +50,8 @@ export interface SuraData {
 }
 export type TafsirEntry = string | [string, string];
 
-const V = typeof __BUILD__ !== 'undefined' ? __BUILD__ : 'dev';
+export const DATA_V = typeof __DATA_V__ !== 'undefined' ? __DATA_V__ : 'dev';
+const V = DATA_V;
 
 export async function fetchJson<T>(path: string): Promise<T> {
   const r = await fetch(`data/${path}?v=${V}`);

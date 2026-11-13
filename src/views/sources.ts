@@ -230,6 +230,21 @@ export async function render(root: HTMLElement, _r: Route) {
         h('li', null, h('strong', null, 'QuranEnc uzbek_rwwad'), ' — Ruvvod tarjima markazi tarjimasi. Mavjud, ammo loyiha talabida koʻrsatilmagani uchun kiritilmadi.'),
       ),
 
+      h('h2', null, 'Algoritm bilan hisoblanadigan narsalar'),
+      h(
+        'ul',
+        null,
+        h('li', null, h('strong', null, 'Graf joylashuvi, «suraga xos ildizlar», «eng yaqin suralar», ikki surani solishtirish'), ' — ildizlar sonidan TF-IDF va ForceAtlas2 bilan hisoblanadi. Bu faqat soʻz ildizlari statistikasi; mazmun, mavzu yoki tafsir boʻyicha xulosa emas.'),
+        h('li', null, h('strong', null, 'Kun oyati'), ' — sana boʻyicha formula bilan tanlanadigan oyat (maʼno boʻyicha saralanmagan). Oyat matni manbadan soʻzma-soʻz.'),
+        h('li', null, h('strong', null, 'Oyat kartasi (rasm)'), ' — arabcha matn va tarjima oʻzgartirilmasdan rasmga chiziladi; juda uzun oyatlar uchun rasm yaratilmaydi.'),
+        h('li', null, h('strong', null, 'Xatm rejasi'), ' — 604 sahifa (Tanzil sahifa chegaralari) kunlarga teng boʻlinadi.'),
+      ),
+      h('h2', null, 'Oflayn rejim va maxfiylik'),
+      h(
+        'p',
+        null,
+        'Sayt service worker yordamida ochilgan sahifalarni brauzer keshida saqlaydi; «Saqlangan» boʻlimida butun Qurʼonni oflayn uchun yuklab olish mumkin. Sayt shaxsiy maʼlumot yigʻmaydi, analitika va cookie ishlatmaydi: saqlanganlar, eslatmalar, xatm rejasi va sozlamalar faqat brauzeringizda turadi.',
+      ),
       h('h2', null, 'Sunʼiy intellekt haqida'),
       h(
         'p',

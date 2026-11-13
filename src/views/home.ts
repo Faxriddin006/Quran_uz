@@ -1,5 +1,8 @@
 import { h, icon, I } from '../lib/dom.ts';
-import { getMeta, juzOf, pageOf, parseQuickNav, type Meta, type SuraMeta } from '../lib/data.ts';
+import { getMeta, getSura, refOf, juzOf, pageOf, parseQuickNav, type Meta, type SuraMeta } from '../lib/data.ts';
+import { getKhatm, portion } from '../lib/khatm.ts';
+import { stripFootnoteMarks } from '../lib/normalize.ts';
+import { settings } from '../lib/store.ts';
 import { matchSura } from '../lib/normalize.ts';
 import { getLastRead, getHistory, load, save } from '../lib/store.ts';
 import { setTitle, typeLabel, relTime } from '../lib/util.ts';
@@ -124,6 +127,7 @@ export async function render(root: HTMLElement, _r: Route) {
     quickCard('#/xarita', I.map, 'Suralar xaritasi', '114 sura: hajmi, Makkiy/Madaniy, nuzul tartibi'),
     quickCard('#/ildizlar', I.graph, 'Ildizlar grafi', 'Arabcha ildizlar orqali suralar aloqasi'),
     quickCard('#/juz', I.layers, 'Juz, sahifa va sajdalar', '30 juz, 604 sahifa, 15 sajda oyati'),
+    khatmCard(meta),
   );
 
   const histRow =
@@ -216,6 +220,7 @@ export async function render(root: HTMLElement, _r: Route) {
     h(
       'section',
       { class: 'wrap', 'aria-labelledby': 'suralar-h' },
+      dailyAyah(meta),
       h('h2', { id: 'suralar-h', class: 'sr-only' }, 'Suralar roʻyxati'),
       h('div', { class: 'list-tools' }, filter, orderBtns.mushaf, orderBtns.nuzul, orderBtns.hajm, typeBtns.all, typeBtns.makkiy, typeBtns.madaniy, count),
       grid,
@@ -224,6 +229,45 @@ export async function render(root: HTMLElement, _r: Route) {
   );
   paint();
   return () => document.removeEventListener('click', closeSugg);
+}
+
+function khatmCard(meta: Meta) {
+  const k = getKhatm();
+  if (!k) return quickCard('#/saqlangan', I.cal, 'Xatm rejasi', 'Qurʼonni kunlarga boʻlib oʻqish');
+  if (k.done >= k.days) return quickCard('#/saqlangan', I.check, 'Xatm tugallandi', `${k.days} kunlik reja`);
+  const p = portion(meta, k, k.done + 1);
+  return quickCard(`#${p.from[0]}:${p.from[1]}`, I.cal, `Xatm: ${k.done + 1}/${k.days}-kun`, p.fromPage === p.toPage ? `${p.fromPage}-sahifa` : `${p.fromPage}–${p.toPage}-sahifalar`);
+}
+
+/** Kun oyati: sana bo'yicha aniqlanadigan (hamma uchun bir xil) oyat. Matn manbadan so'zma-so'z. */
+function dailyAyah(meta: Meta) {
+  const box = h('section', { class: 'card daily', 'aria-label': 'Kun oyati' });
+  const show = async (gid: number, label: string) => {
+    const [s, a] = refOf(meta, gid);
+    const ed = meta.editions.find((e) => settings.editions.includes(e.id)) ?? meta.editions[0];
+    try {
+      const d = await getSura(s);
+      box.replaceChildren(
+        h(
+          'div',
+          { class: 'daily-head' },
+          h('span', { class: 'daily-tag' }, label),
+          h('a', { href: `#${s}:${a}` }, `${meta.suras[s - 1].tr}, ${s}:${a}`),
+          h('button', { class: 'btn small', type: 'button', style: { marginLeft: 'auto' }, onclick: () => show(Math.floor(Math.random() * 6236), 'Tasodifiy oyat') }, icon(I.shuffle), 'Boshqa oyat'),
+        ),
+        h('p', { class: 'ar daily-ar', lang: 'ar' }, d.ar[a - 1]),
+        h('p', { class: 'daily-tr', lang: 'uz' }, stripFootnoteMarks(d.tr[ed.id][a - 1])),
+        h('p', { class: 'muted daily-src' }, `${ed.title} tarjimasi · oyat alohida olingan — toʻliq maʼno uchun `, h('a', { href: `#${s}:${a}` }, 'suradagi oʻrnida oʻqing'), '.'),
+      );
+    } catch {
+      box.remove();
+    }
+  };
+  const now = new Date();
+  const dayNo = Math.floor(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / 86400000);
+  // Knut multiplikativ xeshi: kunlar bo'yicha oyatlarni bir tekis "aralashtiradi"
+  show(((dayNo * 2654435761) >>> 0) % 6236, 'Kun oyati');
+  return box;
 }
 
 function quickCard(href: string, ic: string, title: string, sub: string) {

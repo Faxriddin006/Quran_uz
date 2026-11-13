@@ -1,7 +1,7 @@
 {
   "name": "quran-uz",
   "private": true,
-  "version": "1.0.0",
+  "version": "2.0.0",
   "type": "module",
   "description": "Qur'oni Karim — o'zbekcha tarjimalar bilan o'qish, qidiruv, suralar xaritasi va ildizlar grafi",
   "scripts": {
@@ -11,6 +11,7 @@
     "preview": "vite preview"
   },
   "devDependencies": {
+    "@types/node": "^22.20.5",
     "graphology-layout-forceatlas2": "^0.10.1",
     "graphology-layout-noverlap": "^0.4.2",
     "typescript": "^7.0.2",

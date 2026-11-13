@@ -31,6 +31,13 @@ export function append(el: Node, children: Child[]): void {
   }
 }
 
+/** replaceChildren, lekin null/massivlarni ham qabul qiladi */
+export function setChildren(el: Element, ...children: Child[]): void {
+  const frag = document.createDocumentFragment();
+  append(frag, children);
+  el.replaceChildren(frag);
+}
+
 const SVGNS = 'http://www.w3.org/2000/svg';
 /** Ikonka (faqat ichki, ishonchli path ma'lumotlari). */
 export function icon(paths: string, cls = ''): SVGSVGElement {
@@ -52,6 +59,11 @@ export function icon(paths: string, cls = ''): SVGSVGElement {
 }
 
 export const I = {
+  expand: 'M4 9V4h5|M20 9V4h-5|M4 15v5h5|M20 15v5h-5',
+  image: 'M3 5h18v14H3z|M3 16l5-5 4 4 3-3 6 6|M15.5 9.5h.01',
+  cal: 'M4 6h16v15H4z|M4 10h16|M8 3v4|M16 3v4',
+  check: 'M5 12l5 5 9-10',
+  pen: 'M4 20h4L19 9l-4-4L4 16z|M13.5 6.5l4 4',
   book: 'M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z|M4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5',
   search: 'M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14z|M20 20l-4-4',
   map: 'M3 3h8v10H3z|M13 3h8v5h-8z|M13 10h8v11h-8z|M3 15h8v6H3z',

@@ -25,6 +25,18 @@ Arabcha Usmoniy matn va oʻzbekcha tarjimalar bilan Qurʼon oʻqish uchun tezkor
 
 Qorongʻi/yorugʻ mavzu, WCAG AA kontrast, Lighthouse (bosh sahifa): Performance 100, Accessibility 100, Best Practices 100, SEO 100.
 
+### V2 da qoʻshilganlar
+
+| Boʻlim | Yangilik |
+|---|---|
+| **Ildizlar grafi** | Joylashuv faqat eng xos (TF-IDF) 3 636 bogʻlanish boʻyicha hisoblanadi — markazdagi «tugun» oʻrniga klasterlar; qolgan ~14 ming bogʻlanish faqat tugun tanlanganda chiziladi (tezroq). **Ikki surani solishtirish**, ildizlari boʻyicha eng yaqin suralar, faqat shu surada uchraydigan ildizlar, ildizning 114 sura boʻyicha taqsimoti, chastota slayderi, toʻliq ekran |
+| **Oflayn (PWA)** | Service worker: ochilgan sahifalar keshlanadi; «Saqlangan» boʻlimida butun Qurʼonni bir marta yuklab (≈5 MB), internetsiz ishlatish mumkin |
+| **Xatm rejasi** | 604 sahifa tanlangan kunlar soniga boʻlinadi, har kuni bugungi qism va jarayon koʻrsatiladi |
+| **Oyat kartasi** | Oyatni (arabcha + tarjima) rasm sifatida yuklab olish yoki ulashish |
+| **Kun oyati** | Bosh sahifada, sana boʻyicha tanlanadi |
+
+Graf va oʻxshashlik hisob-kitoblari faqat soʻz ildizlari statistikasi — mazmun yoki tafsir boʻyicha xulosa emas.
+
 ## Asosiy qoida: matnlar oʻzgartirilmaydi
 
 Sayt Qurʼon matni, tarjima, izoh yoki tafsirni **oʻzi yaratmaydi, qayta ifodalamaydi va «tuzatmaydi»**. Barcha matnlar nashr qilingan manbalardan soʻzma-soʻz olinadi va `data/raw/` papkasida asl holida saqlanadi. `scripts/build-data.mjs` har bir manbada oyatlar soni (6236) va tartibini tekshiradi; mos kelmasa build toʻxtaydi.

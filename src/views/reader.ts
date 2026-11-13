@@ -598,7 +598,7 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
           rootBtn,
           bmBtn,
           h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Nusxa olish', title: 'Nusxa olish', onclick: () => copyAyah(a) }, icon(I.copy)),
-          h('button', { class: 'icon-btn', type: 'button', 'aria-label': 'Ulashish', title: 'Ulashish', onclick: () => shareAyah(a) }, icon(I.share)),
+          h('button', { class: 'icon-btn', type: 'button', 'aria-haspopup': 'menu', 'aria-label': 'Ulashish', title: 'Ulashish (havola yoki rasm)', onclick: (e: Event) => (e.stopPropagation(), openShareMenu(e.currentTarget as HTMLElement, a)) }, icon(I.share)),
         ),
       ),
       settings.showAr ? h('p', { class: 'ar ar-text', lang: 'ar' }, data.ar[i], ' ', h('span', { class: 'ayah-num', 'aria-hidden': 'true' }, arNum(a))) : null,
@@ -893,6 +893,68 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
     ];
     copyText(parts.join('\n\n')).then((ok) => toast(ok ? 'Nusxa olindi' : 'Nusxa olib boʻlmadi'));
   }
+  // ---------- Ulashish menyusi ----------
+  let shareMenu: HTMLElement | null = null;
+  const closeShareMenu = () => {
+    shareMenu?.remove();
+    shareMenu = null;
+  };
+  function openShareMenu(anchor: HTMLElement, a: number) {
+    const had = shareMenu?.dataset.a === String(a);
+    closeShareMenu();
+    if (had) return;
+    const item = (ic: string, label: string, fn: () => void) => h('button', { type: 'button', role: 'menuitem', onclick: () => (closeShareMenu(), fn()) }, icon(ic), label);
+    shareMenu = h('div', { class: 'pop-menu', role: 'menu', 'data-a': String(a) }, item(I.link, 'Havolani ulashish', () => shareAyah(a)), item(I.image, 'Rasm sifatida (oyat kartasi)', () => openCard(a)));
+    anchor.parentElement!.appendChild(shareMenu);
+    shareMenu.querySelector('button')?.focus();
+  }
+  document.addEventListener('click', closeShareMenu);
+
+  // ---------- Oyat kartasi (rasm) ----------
+  async function openCard(a: number) {
+    const ed = meta.editions.find((e) => settings.editions.includes(e.id)) ?? meta.editions[0];
+    toast('Rasm tayyorlanmoqda…');
+    let blob: Blob | null = null;
+    try {
+      const { renderCard } = await import('../lib/card.ts');
+      blob = await renderCard({
+        ar: data.ar[a - 1],
+        tr: plainTr(ed.id, a - 1),
+        ref: `${sm.tr} surasi, ${sm.n}:${a}`,
+        trBy: ed.title,
+        site: location.host + location.pathname.replace(/\/$/, ''),
+      });
+    } catch {
+      blob = null;
+    }
+    if (disposed) return;
+    if (!blob) return toast('Bu oyat rasm uchun juda uzun — matn yoki havolani ulashing');
+    const url = URL.createObjectURL(blob);
+    const name = `quron-${sm.n}-${a}.png`;
+    const file = new File([blob], name, { type: 'image/png' });
+    const dlg = h('dialog', { class: 'modal card-modal', 'aria-label': 'Oyat kartasi' });
+    const close = () => {
+      dlg.close();
+      dlg.remove();
+      URL.revokeObjectURL(url);
+    };
+    const canShare = !!navigator.canShare?.({ files: [file] });
+    dlg.append(
+      h('img', { src: url, alt: `${sm.n}:${a} oyat kartasi`, class: 'card-img' }),
+      h(
+        'div',
+        { class: 'modal-actions' },
+        h('a', { class: 'btn primary', href: url, download: name }, icon(I.download), 'Yuklab olish'),
+        ...(canShare ? [h('button', { class: 'btn', type: 'button', onclick: () => navigator.share({ files: [file], title: `Qurʼon ${sm.n}:${a}` }).catch(() => {}) }, icon(I.share), 'Ulashish')] : []),
+        h('button', { class: 'btn', type: 'button', onclick: close }, 'Yopish'),
+      ),
+    );
+    dlg.addEventListener('cancel', (e) => (e.preventDefault(), close()));
+    dlg.addEventListener('click', (e) => e.target === dlg && close());
+    document.body.appendChild(dlg);
+    dlg.showModal();
+  }
+
   async function shareAyah(a: number) {
     const url = siteUrl(`#${sm.n}:${a}`);
     const ed = meta.editions.find((e) => settings.editions.includes(e.id)) ?? meta.editions[0];
@@ -1276,6 +1338,9 @@ function mount(root: HTMLElement, meta: Meta, data: SuraData, target: number | n
 
   return () => {
     disposed = true;
+    closeShareMenu();
+    document.removeEventListener('click', closeShareMenu);
+    document.querySelectorAll('dialog.card-modal').forEach((d) => d.remove());
     io?.disconnect();
     window.removeEventListener('scroll', onScroll);
     audio.pause();

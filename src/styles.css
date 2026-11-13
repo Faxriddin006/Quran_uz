@@ -24,6 +24,9 @@
   --gold-soft: #f5e7c4;
   --makki: #c98a1c;
   --madani: #19857c;
+  --cmp-s: #d99a12;
+  --cmp-a: #3f6fd8;
+  --cmp-b: #c2477b;
   --makki-ink: #7a520a;
   --madani-ink: #0b5f57;
   --mark: #ffe08a;
@@ -56,6 +59,9 @@
     --gold-soft: #3a2f16;
     --makki: #e3a43a;
     --madani: #3dbcb0;
+    --cmp-s: #f2c14e;
+    --cmp-a: #7aa2ff;
+    --cmp-b: #f07fae;
     --makki-ink: #e3a43a;
     --madani-ink: #3dbcb0;
     --mark: #6b5310;
@@ -80,6 +86,9 @@
   --gold-soft: #3a2f16;
   --makki: #e3a43a;
   --madani: #3dbcb0;
+  --cmp-s: #f2c14e;
+  --cmp-a: #7aa2ff;
+  --cmp-b: #f07fae;
   --makki-ink: #e3a43a;
   --madani-ink: #3dbcb0;
   --mark: #6b5310;
@@ -2144,4 +2153,385 @@ mark {
   transition:
     background 0.2s,
     border-color 0.2s;
+}
+
+/* ---------- Graf v2 ---------- */
+.g-freq {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  color: var(--ink-2);
+  padding: 6px 12px;
+  border: 1px solid var(--line-2);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.g-freq input {
+  width: 96px;
+  accent-color: var(--accent);
+}
+.g-freq-out {
+  min-width: 118px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}
+.g-hint {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  max-width: calc(100% - 20px);
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  border: 1px solid var(--line);
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+.g-hint > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.g-stage-wrap.full {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  border-radius: 0;
+  border: 0;
+  min-height: 0;
+  height: 100dvh;
+}
+body.g-noscroll {
+  overflow: hidden;
+}
+.g-note {
+  font-size: 12.5px;
+  margin: 8px 0 0;
+  line-height: 1.5;
+}
+.g-dist {
+  display: flex;
+  align-items: flex-end;
+  gap: 1px;
+  height: 64px;
+  padding: 6px 6px 0;
+  border-radius: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+}
+.g-bar {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 2px 2px 0 0;
+  background: var(--makki);
+}
+.g-bar.madaniy {
+  background: var(--madani);
+}
+.g-bar.zero {
+  background: var(--line-2);
+}
+.g-bar:hover {
+  filter: brightness(1.25);
+}
+.g-sim {
+  display: grid;
+  gap: 4px;
+}
+.g-sim-row {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1.2fr) minmax(40px, 1fr) 40px;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: none;
+  text-align: left;
+  font-size: 14px;
+}
+.g-sim-row:hover {
+  background: var(--surface-2);
+  border-color: var(--line);
+}
+.g-sim-row .nm {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.g-sim-row .bar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--line);
+  overflow: hidden;
+}
+.g-sim-row .bar i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+}
+.g-sim-row .pc {
+  font-size: 12.5px;
+  color: var(--muted);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.g-cmp-sel {
+  margin-top: 10px;
+  padding: 9px 10px;
+  font-size: 14.5px;
+}
+.g-cmp-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.g-cmp-bar {
+  display: flex;
+  gap: 2px;
+  margin: 12px 0 8px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+.g-cmp-part {
+  display: grid;
+  justify-items: center;
+  padding: 6px 4px;
+  color: #fff;
+  min-width: 0;
+  font-size: 11px;
+  line-height: 1.25;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+.g-cmp-part b {
+  font-size: 16px;
+}
+.g-cmp-part span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.g-tools .chip {
+  padding: 9px 14px;
+}
+@media (max-width: 700px) {
+  .g-head {
+    padding-top: 16px;
+  }
+  .g-head p {
+    display: none;
+  }
+  .g-tools {
+    gap: 8px;
+    margin: 8px 0;
+  }
+  .g-filter {
+    flex: 1 1 140px;
+    padding: 9px 10px;
+  }
+  .g-freq {
+    flex: 1 1 100%;
+  }
+  .g-freq input {
+    flex: 1;
+  }
+  .g-legend {
+    font-size: 12px;
+  }
+  .g-stage-wrap {
+    min-height: 58vh;
+  }
+}
+
+
+/* ---------- Shaxsiy sahifa, kun oyati ---------- */
+.me {
+  padding-bottom: 50px;
+}
+.me-sec h2 {
+  margin: 30px 0 10px;
+  font-size: 22px;
+}
+.me-card {
+  padding: 16px 18px;
+}
+.me-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+.me-prog {
+  height: 10px;
+  margin-top: 8px;
+  border-radius: 5px;
+  background: var(--line);
+  overflow: hidden;
+}
+.me-prog i {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: 5px;
+  transition: width 0.4s;
+}
+.me-note {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px !important;
+  padding: 8px 10px;
+  border-left: 3px solid var(--gold);
+  background: var(--surface-2);
+  border-radius: 0 8px 8px 0;
+  font-size: 14.5px !important;
+  white-space: pre-wrap;
+}
+.me-note svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  margin-top: 4px;
+  color: var(--gold);
+}
+.me-ok {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--accent);
+  font-weight: 600;
+  margin: 0 0 10px;
+}
+.me-ok svg {
+  width: 18px;
+  height: 18px;
+}
+.me-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+.btn:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.daily {
+  margin-top: 22px;
+  padding: 16px 18px;
+}
+.daily-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+.daily-tag {
+  font-weight: 700;
+  color: var(--gold);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  font-size: 12px;
+}
+.daily-ar {
+  font-size: 28px;
+  line-height: 2.1;
+  text-align: right;
+  margin: 8px 0 4px;
+}
+.daily-tr {
+  margin: 0;
+  font-size: 16.5px;
+  line-height: 1.65;
+}
+.daily-src {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+}
+
+/* O'lchami alohida berilmagan ikonkalar uchun standart (nol o'ziga xoslik) */
+:where(svg[aria-hidden='true']) {
+  width: 1.2em;
+  height: 1.2em;
+  flex: none;
+  vertical-align: -0.22em;
+}
+
+/* ---------- Oyat kartasi oynasi ---------- */
+dialog.modal {
+  border: 1px solid var(--line-2);
+  border-radius: 18px;
+  padding: 14px;
+  background: var(--surface);
+  color: var(--ink);
+  max-width: min(520px, calc(100vw - 24px));
+  max-height: calc(100dvh - 24px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+dialog.modal::backdrop {
+  background: rgba(5, 10, 15, 0.6);
+  backdrop-filter: blur(3px);
+}
+.card-img {
+  display: block;
+  width: 100%;
+  max-height: calc(100dvh - 130px);
+  object-fit: contain;
+  border-radius: 10px;
+}
+.modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+  justify-content: center;
+}
+
+/* ---------- Ulashish menyusi ---------- */
+.ayah-actions {
+  position: relative;
+}
+.pop-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 20;
+  min-width: 210px;
+  padding: 4px;
+  border-radius: 12px;
+  background: var(--surface);
+  border: 1px solid var(--line-2);
+  box-shadow: var(--shadow);
+}
+.pop-menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  background: none;
+  border-radius: 8px;
+  font-size: 14.5px;
+  text-align: left;
+}
+.pop-menu button:hover,
+.pop-menu button:focus-visible {
+  background: var(--surface-2);
+}
+.pop-menu svg {
+  width: 18px;
+  height: 18px;
+  color: var(--muted);
 }

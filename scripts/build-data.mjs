@@ -248,6 +248,14 @@ const meta = {
 };
 writeJson('meta.json', meta);
 
+// Ma'lumot versiyasi: manbalar yoki qurish skriptlari o'zgarsagina o'zgaradi (brauzer keshi kaliti)
+{
+  const hsh = crypto.createHash('sha256');
+  for (const v of Object.values(meta.sources)) hsh.update(v.sha256);
+  for (const f of ['scripts/build-data.mjs', 'scripts/build-roots.mjs', 'src/lib/normalize.ts', 'src/lib/translit.ts']) hsh.update(fs.readFileSync(path.join(ROOT, f)));
+  writeJson('version.json', { v: hsh.digest('hex').slice(0, 10) });
+}
+
 // ---------- 6. Qidiruv indeksi (MiniSearch, oldindan qurilgan) ----------
 const ms = new MiniSearch({
   idField: 'id',
